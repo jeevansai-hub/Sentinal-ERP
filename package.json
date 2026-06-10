@@ -1,0 +1,45 @@
+{
+  "name": "erp7",
+  "version": "0.1.0",
+  "description": "ERP7 — Full-Suite Enterprise Resource Planning System",
+  "private": true,
+  "workspaces": [
+    "apps/web",
+    "apps/api",
+    "shared"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "cd apps/api && npm run dev",
+    "dev:web": "cd apps/web && npm run dev",
+    "build": "npm run build:api && npm run build:web",
+    "build:api": "cd apps/api && npm run build",
+    "build:web": "cd apps/web && npm run build",
+    "test": "npm run test:unit",
+    "test:unit": "jest --testPathPattern=\"\\.test\\.ts$\"",
+    "test:integration": "jest --testPathPattern=\"\\.integration\\.test\\.ts$\"",
+    "test:e2e": "playwright test",
+    "lint": "eslint . --ext .ts,.tsx",
+    "lint:fix": "eslint . --ext .ts,.tsx --fix",
+    "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,json,md}\"",
+    "type-check": "tsc --noEmit",
+    "db:migrate": "node scripts/database/migrate.js",
+    "db:rollback": "node scripts/database/rollback.js",
+    "db:seed:dev": "node scripts/seed/development.js",
+    "db:seed:test": "node scripts/seed/test.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "concurrently": "^8.0.0",
+    "eslint": "^8.0.0",
+    "jest": "^29.0.0",
+    "playwright": "^1.40.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}

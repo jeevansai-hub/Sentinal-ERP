@@ -1,0 +1,70 @@
+# ERP7 Gitignore
+
+# ─── Environment files (NEVER commit real env files) ──────
+.env
+.env.local
+.env.development
+.env.staging
+.env.production
+.env.*.local
+!.env.*.example
+
+# ─── Security (NEVER commit real secrets) ─────────────────
+security/certificates/*.pem
+security/certificates/*.crt
+security/certificates/*.key
+*.p12
+*.pfx
+
+# ─── Backups ──────────────────────────────────────────────
+database/backups/*.sql
+database/backups/*.dump
+database/backups/*.gz
+
+# ─── Node.js ──────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn/cache
+.yarn/unplugged
+.yarn/install-state.gz
+.pnp.*
+
+# ─── Build outputs ────────────────────────────────────────
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# ─── Test coverage ────────────────────────────────────────
+coverage/
+.nyc_output/
+
+# ─── Logs ─────────────────────────────────────────────────
+logs/
+*.log
+
+# ─── OS files ─────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── IDE files ────────────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# ─── Upload directories ───────────────────────────────────
+uploads/
+temp/
+
+# ─── Terraform state ──────────────────────────────────────
+infrastructure/terraform/**/.terraform/
+infrastructure/terraform/**/*.tfstate
+infrastructure/terraform/**/*.tfstate.backup
+infrastructure/terraform/**/*.tfvars
+!infrastructure/terraform/**/*.tfvars.example
