@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -9,20 +9,24 @@ import {
   X,
   Menu,
   Check,
-  Compass,
-  Users,
-  LineChart,
   Eye,
-  EyeOff
+  EyeOff,
+  ChevronRight,
+  Sparkles,
+  Radio
 } from 'lucide-react';
 import { 
   loginWithGoogle, 
   registerWithEmail, 
   loginWithEmail, 
   logoutUser, 
-  onAuthChanged 
+  onAuthChanged,
+  isOnboardingCompleted
 } from './services/firebase';
 import MagicRings from './components/MagicRings';
+import OnboardingPage from './components/OnboardingPage';
+import DashboardLayout from './components/dashboard/DashboardLayout';
+import AdminControlTower from './components/dashboard/AdminControlTower';
 
 /* ── REUSABLE PAGE TRANSITION WRAPPER ─────────────────────── */
 function PageTransition({ children }: { children: React.ReactNode }) {
@@ -40,17 +44,178 @@ function PageTransition({ children }: { children: React.ReactNode }) {
 }
 
 /* ── AUTH STATE PROVIDER SIMULATION ──────────────────────── */
-interface UserSession {
+export interface UserSession {
   uid: string;
   email: string;
   displayName?: string;
   orgName?: string;
   industry?: string;
+  provider?: string;
+}
+
+export type UserRole = 'ADMIN' | 'AGENT' | 'USER';
+
+export function resolveUserRole(user: any): UserRole {
+  if (!user) return 'USER';
+  const email = (user.email || '').trim().toLowerCase();
+  
+  if (user.provider === 'microsoft') {
+    return 'ADMIN';
+  }
+  if (email === 'admin@gmail.com') {
+    return 'ADMIN';
+  }
+  if (email === 'agent@gmail.com') {
+    return 'AGENT';
+  }
+  return 'USER';
+}
+
+export function getLandingRoute(role: UserRole, uid?: string): string {
+  if (role === 'ADMIN') {
+    return '/admin-control-tower';
+  }
+  if (role === 'AGENT') {
+    return '/dashboard/ecc';
+  }
+  
+  const onboardingData = uid ? localStorage.getItem(`sentinel_onboarding_${uid}`) : null;
+  return onboardingData ? '/dashboard' : '/onboarding';
+}
+
+function TransitionOverlay({ role, onComplete }: { role: UserRole; onComplete: () => void }) {
+  const [isFadingOut, setIsFadingOut] = useState(false);
+
+  const config = {
+    ADMIN: {
+      roleText: "CONTROL TOWER",
+      subtitle: "Loading Control Tower...",
+    },
+    AGENT: {
+      roleText: "AI COMMAND CENTER",
+      subtitle: "Loading Agent Workspace...",
+    },
+    USER: {
+      roleText: "WORKSPACE",
+      subtitle: "Loading Workspace...",
+    }
+  }[role];
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsFadingOut(true);
+      const completionTimer = setTimeout(onComplete, 200);
+      return () => clearTimeout(completionTimer);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [onComplete]);
+
+  return (
+    <div 
+      className={`fixed inset-0 z-[9999] bg-[#080b12]/95 backdrop-blur-[8px] flex flex-col items-center justify-center p-6 font-sans select-none overflow-hidden transition-all duration-200 ${
+        isFadingOut ? "opacity-0 scale-95" : "opacity-100 scale-100 animate-fade-in"
+      }`}
+    >
+      {/* Subtle monochrome background glow */}
+      <div 
+        className="absolute w-[260px] h-[260px] rounded-full blur-[100px] opacity-15 pointer-events-none"
+        style={{
+          background: "radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%)"
+        }}
+      />
+
+      <div className="flex flex-col items-center text-center space-y-6 z-10">
+        {/* Sleek, professional monochrome spinner */}
+        <div className="relative h-14 w-14 flex items-center justify-center">
+          {/* Static thin grey track */}
+          <div className="absolute inset-0 rounded-full border border-white/5" />
+          
+          {/* Spin ring: single rotating white-to-grey stroke segment */}
+          <svg className="absolute inset-0 w-full h-full animate-spin" viewBox="0 0 100 100" style={{ animationDuration: '0.85s' }}>
+            <circle 
+              cx="50" 
+              cy="50" 
+              r="44" 
+              fill="none" 
+              stroke="rgba(255,255,255,0.04)" 
+              strokeWidth="2.0" 
+            />
+            <circle 
+              cx="50" 
+              cy="50" 
+              r="44" 
+              fill="none" 
+              stroke="rgba(255,255,255,0.7)" 
+              strokeWidth="2.0" 
+              strokeDasharray="276"
+              strokeDashoffset="210"
+              strokeLinecap="round"
+            />
+          </svg>
+          
+          {/* Minimalist lettermark center */}
+          <span className="text-white text-[11px] font-black tracking-tighter select-none font-mono">
+            S
+          </span>
+        </div>
+
+        <div className="space-y-1.5">
+          {/* Animated Simple Role Text in clean white */}
+          <h2 className="text-[10px] font-bold tracking-[0.3em] text-white/95 uppercase font-mono flex items-center justify-center gap-[0.5px]">
+            {config.roleText.split('').map((char, index) => (
+              <span 
+                key={index} 
+                className="animate-letter" 
+                style={{ 
+                  animationDelay: `${index * 35}ms`,
+                  whiteSpace: char === ' ' ? 'pre' : 'normal'
+                }}
+              >
+                {char}
+              </span>
+            ))}
+          </h2>
+
+          {/* Subtitle in sleek slate grey */}
+          <p className="text-[9px] text-white/40 tracking-wider font-mono uppercase">{config.subtitle}</p>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes letterFadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(3px);
+            filter: blur(1px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+            filter: blur(0);
+          }
+        }
+        .animate-fade-in {
+          animation: fadeIn 200ms ease-out forwards;
+        }
+        .animate-letter {
+          display: inline-block;
+          opacity: 0;
+          animation: letterFadeIn 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+      `}</style>
+    </div>
+  );
 }
 
 /* ── CORE APPLICATION MAIN ENTRY ─────────────────────────── */
 export default function App() {
   const [currentUser, setCurrentUser] = useState<UserSession | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
   // Sync auth state with Firebase Auth
   useEffect(() => {
@@ -71,6 +236,7 @@ export default function App() {
           setCurrentUser(null);
         }
       }
+      setAuthLoading(false);
     });
 
     return () => unsubscribe();
@@ -90,7 +256,7 @@ export default function App() {
 
   return (
     <Router>
-      <AnimatedRoutes user={currentUser} setUser={handleSetUser} />
+      <AnimatedRoutes user={currentUser} setUser={handleSetUser} authLoading={authLoading} />
     </Router>
   );
 }
@@ -98,19 +264,146 @@ export default function App() {
 interface AnimatedRoutesProps {
   user: UserSession | null;
   setUser: (user: UserSession | null) => void;
+  authLoading: boolean;
 }
 
-function AnimatedRoutes({ user, setUser }: AnimatedRoutesProps) {
+function AnimatedRoutes({ user, setUser, authLoading }: AnimatedRoutesProps) {
   const location = useLocation();
+  const navigate = useNavigate();
+  
+  const [transitioningUser, setTransitioningUser] = useState<UserSession | null>(null);
+  const [transitionRole, setTransitionRole] = useState<UserRole | null>(null);
+
+  const handleLoginSuccess = (userSession: UserSession) => {
+    const role = resolveUserRole(userSession);
+    setTransitionRole(role);
+    setTransitioningUser(userSession);
+  };
+
+  useEffect(() => {
+    if (authLoading) return;
+
+    if (!user) {
+      // User is not logged in. If trying to access protected routes, redirect to /login
+      const isProtectedRoute = location.pathname.startsWith('/dashboard') || 
+                               location.pathname === '/onboarding' || 
+                               location.pathname === '/admin-control-tower';
+      if (isProtectedRoute) {
+        navigate('/login');
+      }
+      return;
+    }
+
+    // User is logged in.
+    // 1. Avoid login / signup pages
+    if (location.pathname === '/login' || location.pathname === '/signup') {
+      const role = resolveUserRole(user);
+      const landing = getLandingRoute(role, user.uid);
+      navigate(landing);
+      return;
+    }
+
+    const role = resolveUserRole(user);
+    const path = location.pathname;
+
+    if (role === 'ADMIN') {
+      // Admin is ONLY allowed to access /admin-control-tower. If elsewhere, redirect to /admin-control-tower
+      if (path !== '/admin-control-tower') {
+        navigate('/admin-control-tower');
+      }
+    } else if (role === 'AGENT') {
+      // Agent is ONLY allowed to access agent-specific routes.
+      const agentRoutes = [
+        '/dashboard/ecc',
+        '/dashboard/ops-hub',
+        '/dashboard/workflow-orch',
+        '/dashboard/knowledge-graph',
+        '/dashboard/adaptive-intel',
+        '/dashboard/strategic-intel',
+        '/dashboard/governance-compliance',
+        '/dashboard/digital-twin',
+        '/dashboard/observability-resilience'
+      ];
+      if (path === '/admin-control-tower' || path === '/onboarding' || (!agentRoutes.includes(path) && path.startsWith('/dashboard'))) {
+        navigate('/dashboard/ecc');
+      } else if (!path.startsWith('/dashboard')) {
+        navigate('/dashboard/ecc');
+      }
+    } else {
+      // STANDARD USER
+      // Standard user is NOT allowed to access Admin page or Agent pages.
+      const agentRoutes = [
+        '/dashboard/ecc',
+        '/dashboard/ops-hub',
+        '/dashboard/workflow-orch',
+        '/dashboard/knowledge-graph',
+        '/dashboard/adaptive-intel',
+        '/dashboard/strategic-intel',
+        '/dashboard/governance-compliance',
+        '/dashboard/digital-twin',
+        '/dashboard/observability-resilience'
+      ];
+      
+      const onboardingData = localStorage.getItem(`sentinel_onboarding_${user.uid}`);
+      const isOnboarded = !!onboardingData;
+
+      if (path === '/admin-control-tower' || agentRoutes.includes(path)) {
+        navigate(isOnboarded ? '/dashboard' : '/onboarding');
+      } else if (!isOnboarded) {
+        if (path.startsWith('/dashboard')) {
+          navigate('/onboarding');
+        }
+      } else {
+        if (path === '/onboarding') {
+          navigate('/dashboard');
+        }
+      }
+    }
+  }, [user, location.pathname, navigate, authLoading]);
+
+  if (authLoading) {
+    return (
+      <div className="fixed inset-0 bg-black flex flex-col items-center justify-center space-y-4 font-mono select-none z-[9999]">
+        <div className="relative h-16 w-16">
+          <div className="absolute inset-0 rounded-full border-2 border-white/5 animate-ping opacity-25" />
+          <div className="absolute inset-2 rounded-full border-2 border-white/10 animate-pulse opacity-50" />
+          <div className="absolute inset-4 rounded-full border-t-2 border-r-2 border-transparent border-t-white border-r-white/50 animate-spin" />
+        </div>
+        <div className="text-[10px] text-white/40 uppercase tracking-widest animate-pulse">Syncing Sentinel Core...</div>
+      </div>
+    );
+  }
+
   return (
-    <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
-        <Route path="/" element={<PageTransition><LandingPage /></PageTransition>} />
-        <Route path="/login" element={<PageTransition><LoginPage setUser={setUser} /></PageTransition>} />
-        <Route path="/signup" element={<PageTransition><SignupPage setUser={setUser} /></PageTransition>} />
-        <Route path="/dashboard-preview" element={<PageTransition><DashboardPreview user={user} setUser={setUser} /></PageTransition>} />
-      </Routes>
-    </AnimatePresence>
+    <>
+      <AnimatePresence mode="wait">
+        {transitioningUser && transitionRole && (
+          <TransitionOverlay 
+            role={transitionRole} 
+            onComplete={() => {
+              const u = transitioningUser;
+              const r = transitionRole;
+              setTransitioningUser(null);
+              setTransitionRole(null);
+              setUser(u);
+              const landing = getLandingRoute(r, u.uid);
+              navigate(landing);
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
+          <Route path="/" element={<PageTransition><LandingPage /></PageTransition>} />
+          <Route path="/login" element={<PageTransition><LoginPage onLoginSuccess={handleLoginSuccess} /></PageTransition>} />
+          <Route path="/signup" element={<PageTransition><SignupPage onLoginSuccess={handleLoginSuccess} /></PageTransition>} />
+          <Route path="/onboarding" element={<PageTransition><OnboardingPage user={user} setUser={setUser} /></PageTransition>} />
+          <Route path="/dashboard/*" element={<DashboardLayout user={user} setUser={setUser} />} />
+          <Route path="/admin-control-tower" element={<PageTransition><AdminControlTower user={user} setUser={setUser} /></PageTransition>} />
+        </Routes>
+      </AnimatePresence>
+    </>
   );
 }
 
@@ -1344,10 +1637,10 @@ function LandingPage() {
                           className="w-full h-11 px-4 text-sm bg-white/5 border border-white/10 rounded-xl outline-none text-white select-none appearance-none"
                           style={{ colorScheme: 'dark' }}
                         >
-                          <option value="50-100">50 - 100 Employees</option>
-                          <option value="100-500">100 - 500 Employees</option>
-                          <option value="500-2000">500 - 2,000 Employees</option>
-                          <option value="2000+">2,000+ Employees</option>
+                          <option value="50-100" className="bg-neutral-900 text-white" style={{ backgroundColor: '#121212', color: '#ffffff' }}>50 - 100 Employees</option>
+                          <option value="100-500" className="bg-neutral-900 text-white" style={{ backgroundColor: '#121212', color: '#ffffff' }}>100 - 500 Employees</option>
+                          <option value="500-2000" className="bg-neutral-900 text-white" style={{ backgroundColor: '#121212', color: '#ffffff' }}>500 - 2,000 Employees</option>
+                          <option value="2000+" className="bg-neutral-900 text-white" style={{ backgroundColor: '#121212', color: '#ffffff' }}>2,000+ Employees</option>
                         </select>
                       </div>
 
@@ -1389,10 +1682,154 @@ function LandingPage() {
   );
 }
 
+interface AuthLayoutProps {
+  heroContent: {
+    title: string;
+    description: string;
+    steps: Array<{ number: number; text: string; active?: boolean }>;
+    stats: Array<{ value: string; label: string }>;
+  };
+  formContent: React.ReactNode;
+}
+
+function AuthLayout({ heroContent, formContent }: AuthLayoutProps) {
+  const navigate = useNavigate();
+  return (
+    <main className="min-h-screen lg:h-screen w-full bg-black text-white flex items-center justify-center p-3 sm:p-4 lg:py-4 lg:px-6 xl:py-6 xl:px-8 relative overflow-y-auto lg:overflow-hidden selection:bg-white/20 select-none">
+      {/* Background radial glow */}
+      <div className="absolute inset-0 pointer-events-none select-none z-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.015)_0%,transparent_70%)]" />
+      
+      {/* Center Auth Wrapper Container */}
+      <div className="relative z-10 w-full max-w-[1380px] lg:h-[calc(100vh-2.5rem)] lg:max-h-[820px] bg-neutral-950/65 border border-white/5 rounded-[32px] overflow-hidden flex flex-col lg:flex-row shadow-[0_20px_60px_rgba(0,0,0,0.85)] transition-all duration-300">
+        
+        {/* LEFT COLUMN: Hero Panel (visible on all screens, stacks first) */}
+        <section className="relative flex w-full lg:w-[50%] xl:w-[52%] flex-col justify-between p-8 lg:p-10 overflow-hidden border-b lg:border-b-0 lg:border-r border-white/5 select-none bg-neutral-950 min-h-[380px] lg:min-h-0">
+          
+          {/* Absolute Background Video */}
+          <div className="absolute inset-0 z-0">
+            <video 
+              className="absolute inset-0 w-full h-full object-cover opacity-60"
+              autoPlay 
+              muted 
+              loop 
+              playsInline
+            >
+              <source 
+                src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260506_081238_406ed0e3-5d83-436e-a512-0bbff7ec5b95.mp4" 
+                type="video/mp4" 
+              />
+            </video>
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/20" />
+            <div className="absolute inset-0 bg-black/10 backdrop-blur-[1.5px]" />
+          </div>
+
+          {/* Floating Badges Row (Using flex-wrap to prevent overflow on mobile) */}
+          <div className="absolute left-8 top-8 right-8 z-10 flex flex-wrap items-center justify-end gap-2 pointer-events-none">
+            <div className="px-2.5 py-1 rounded-lg bg-black/40 backdrop-blur-md border border-white/10 flex items-center space-x-1.5 text-[9px] font-bold text-white uppercase tracking-widest">
+              <ShieldCheck size={11} className="text-white/60" />
+              <span>Enterprise Ready</span>
+            </div>
+            <div className="px-2.5 py-1 rounded-lg bg-black/40 backdrop-blur-md border border-white/10 flex items-center space-x-1.5 text-[9px] font-bold text-white uppercase tracking-widest">
+              <Cpu size={11} className="text-white/60" />
+              <span>AI Native</span>
+            </div>
+            <div className="px-2.5 py-1 rounded-lg bg-black/40 backdrop-blur-md border border-white/10 flex items-center space-x-1.5 text-[9px] font-bold text-white uppercase tracking-widest">
+              <Activity size={11} className="text-white/60" />
+              <span>Real-Time Intelligence</span>
+            </div>
+          </div>
+
+          {/* Hero Content Container */}
+          <div className="relative z-10 w-full max-w-[520px] flex flex-col justify-end h-full pt-16 lg:pt-24">
+            
+            {/* Logo Row */}
+            <div 
+              className="flex items-center space-x-2.5 cursor-pointer self-start mb-6 active:scale-[0.98] transition-transform"
+              onClick={() => navigate('/')}
+            >
+              <div className="h-7 w-7 rounded-xl bg-white flex items-center justify-center border border-white/10 shadow-lg shadow-white/5">
+                <span className="text-black font-black text-xs">S</span>
+              </div>
+              <span className="text-sm font-bold tracking-tight text-white uppercase">Sentinel ERP</span>
+            </div>
+
+            {/* Heading */}
+            <h2 className="text-2xl sm:text-3xl font-medium tracking-tight text-white leading-tight mb-3 max-w-[520px] text-left">
+              {heroContent.title}
+            </h2>
+
+            {/* Description */}
+            <p className="text-white/60 text-xs leading-relaxed mb-4 max-w-[520px] text-left">
+              {heroContent.description}
+            </p>
+
+            {/* Highlights checklist (Max 6 benefits) */}
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[10px] sm:text-[11px] font-semibold text-white/70 mb-5 border-t border-white/5 pt-4 text-left">
+              <div className="flex items-center gap-2">
+                <span className="text-white/40">✓</span> Unified Operations
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-white/40">✓</span> AI Intelligence
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-white/40">✓</span> Enterprise Analytics
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-white/40">✓</span> Workflow Automation
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-white/40">✓</span> Real-Time Visibility
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-white/40">✓</span> Secure Governance
+              </div>
+            </div>
+
+            {/* Steps guided progression */}
+            <div className="flex items-center gap-3 mb-5 w-full border-t border-white/5 pt-4 select-none">
+              {heroContent.steps.map((st, i) => (
+                <React.Fragment key={st.number}>
+                  <div className={`flex flex-col gap-1 items-start flex-1 transition-all duration-300 ${st.active ? 'opacity-100' : 'opacity-35'}`}>
+                    <span className="text-[8px] sm:text-[9px] uppercase font-bold text-white tracking-widest font-mono">Step {st.number}</span>
+                    <span className={`text-[10px] sm:text-[11px] font-semibold truncate ${st.active ? 'text-white font-medium' : 'text-white/80 font-normal'}`}>{st.text}</span>
+                  </div>
+                  {i < heroContent.steps.length - 1 && (
+                    <ChevronRight size={12} className="text-white/20 shrink-0 self-end mb-0.5" />
+                  )}
+                </React.Fragment>
+              ))}
+            </div>
+
+            {/* Statistics Section (Aligned 3 equal columns) */}
+            <div className="grid grid-cols-3 gap-4 pt-4 border-t border-white/10 mb-2 text-left">
+              {heroContent.stats.map((stat, i) => (
+                <div key={i} className="space-y-0.5">
+                  <div className="text-xl sm:text-2xl font-bold text-white font-mono leading-none">{stat.value}</div>
+                  <div className="text-[8px] sm:text-[9px] text-white/50 font-semibold leading-tight uppercase tracking-wider">{stat.label}</div>
+                </div>
+              ))}
+            </div>
+
+          </div>
+
+        </section>
+
+        {/* RIGHT COLUMN: Form Panel */}
+        <section className="flex-1 flex flex-col items-center justify-center p-6 sm:p-8 lg:p-10 overflow-y-auto bg-black min-h-[450px] lg:min-h-0 lg:max-h-full">
+          <div className="w-full max-w-[480px] flex flex-col justify-center py-4">
+            {formContent}
+          </div>
+        </section>
+
+      </div>
+    </main>
+  );
+}
+
 /* ═══════════════════════════════════════════════════════════
    2. ENTERPRISE SIGN UP COMPONENT
    ═══════════════════════════════════════════════════════════ */
-function SignupPage({ setUser }: { setUser: (user: UserSession | null) => void }) {
+function SignupPage({ onLoginSuccess }: { onLoginSuccess: (user: UserSession) => void }) {
   const navigate = useNavigate();
 
   // Form states
@@ -1409,19 +1846,6 @@ function SignupPage({ setUser }: { setUser: (user: UserSession | null) => void }
     number: false,
     special: false
   });
-
-  // Provisioning Simulation State: 'form' | 'loading'
-  const [provisioningState, setProvisioningState] = useState<'form' | 'loading'>('form');
-  const [loadingStep, setLoadingStep] = useState(0);
-
-  const loadingSteps = [
-    "Establishing secure cloud gateway...",
-    "Provisioning isolated database tier...",
-    "Deploying Entra ID credentials check...",
-    "Injecting Enterprise Security Modules...",
-    "Calibrating Neural Decision Engines...",
-    "Activating AI-Native Operating System..."
-  ];
 
   useEffect(() => {
     setPasswordRequirements({
@@ -1444,645 +1868,477 @@ function SignupPage({ setUser }: { setUser: (user: UserSession | null) => void }
     email.includes('@') && 
     isPasswordValid;
 
-  const runProvisioning = (authUser: any) => {
-    setProvisioningState('loading');
-    setLoadingStep(0);
-
-    const interval = setInterval(() => {
-      setLoadingStep((prev) => {
-        if (prev >= loadingSteps.length - 1) {
-          clearInterval(interval);
-          setTimeout(() => {
-            setUser({
-              uid: authUser.uid,
-              email: authUser.email || email,
-              displayName: authUser.displayName || email.split('@')[0],
-              orgName: orgName || 'Acme Industries',
-              industry: industry || 'Technology'
-            });
-            navigate('/dashboard-preview');
-          }, 800);
-          return prev;
-        }
-        return prev + 1;
-      });
-    }, 1000);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isFormValid) return;
 
-    const authUser = await registerWithEmail(email, password);
+    const normalizedEmail = email.trim().toLowerCase();
+    if (normalizedEmail === 'agent@gmail.com') {
+      onLoginSuccess({
+        uid: "mock-agent-user-id",
+        email: "agent@gmail.com",
+        displayName: "AI Agent Coordinator",
+        orgName: "Sentinel Command Hub",
+        industry: "Autonomous Operations"
+      });
+      return;
+    }
+    if (normalizedEmail === 'admin@gmail.com') {
+      onLoginSuccess({
+        uid: "mock-microsoft-admin-user",
+        email: "admin@gmail.com",
+        displayName: "Microsoft Admin",
+        orgName: "Sentinel Command Hub",
+        industry: "Autonomous Operations"
+      });
+      return;
+    }
+
+    const authUser = await registerWithEmail(normalizedEmail, password);
     if (authUser) {
-      runProvisioning(authUser);
+      onLoginSuccess({
+        uid: authUser.uid,
+        email: normalizedEmail,
+        displayName: normalizedEmail.split('@')[0],
+        orgName: orgName || 'Acme Industries',
+        industry: industry || 'Technology'
+      });
     }
   };
 
   const handleGoogleSSO = async () => {
     const authUser = await loginWithGoogle();
     if (authUser) {
-      runProvisioning(authUser);
+      onLoginSuccess({
+        uid: authUser.uid,
+        email: authUser.email || "google@user.com",
+        displayName: authUser.displayName || "Google User",
+        orgName: orgName || 'Acme Industries',
+        industry: industry || 'Technology'
+      });
     }
   };
 
+  const handleMicrosoftSSO = () => {
+    onLoginSuccess({
+      uid: "mock-microsoft-admin-user",
+      displayName: "Microsoft Admin",
+      email: "admin@gmail.com",
+      provider: "microsoft",
+      orgName: "Sentinel Command Hub",
+      industry: "Autonomous Operations"
+    });
+  };
+
+  const heroConfig = {
+    title: "The Intelligent Operating System For Modern Enterprises",
+    description: "Manage finance, workforce, inventory, procurement, analytics, automation, and AI through a single intelligent enterprise operating system.",
+    steps: [
+      { number: 1, text: "Create Workspace", active: true },
+      { number: 2, text: "Configure Operations" },
+      { number: 3, text: "Activate AI Layer" }
+    ],
+    stats: [
+      { value: "95%", label: "Automation Efficiency" },
+      { value: "80%", label: "Manual Reduction" },
+      { value: "24/7", label: "AI Monitoring" }
+    ]
+  };
+
   return (
-    <main className="flex min-h-screen w-full bg-black selection:bg-white/30 p-2 lg:h-screen lg:overflow-hidden lg:p-4 transition-all duration-500">
-      
-      {/* LEFT COLUMN: Hero (Immersive Video) */}
-      <section className="relative hidden lg:flex w-[52%] flex-col items-center justify-end pb-32 px-12 rounded-3xl overflow-hidden shadow-2xl h-full border border-white/5 select-none">
-        
-        {/* Absolute Background Video */}
-        <video 
-          className="absolute inset-0 w-full h-full object-cover"
-          autoPlay 
-          muted 
-          loop 
-          playsInline
-        >
-          <source 
-            src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260506_081238_406ed0e3-5d83-436e-a512-0bbff7ec5b95.mp4" 
-            type="video/mp4" 
-          />
-        </video>
-
-        {/* Hero Content Container */}
-        <div className="z-10 w-full max-w-sm space-y-8 text-left">
-          
-          {/* Logo row */}
-          <div 
-            className="flex items-center space-x-2.5 cursor-pointer"
-            onClick={() => navigate('/')}
-          >
-            <div className="h-6 w-6 rounded-full bg-white flex items-center justify-center border border-white">
-              <span className="text-black font-black text-xs">S</span>
-            </div>
-            <span className="text-xl font-bold tracking-tight text-white">SENTINEL ERP</span>
-          </div>
-
-          {/* Heading */}
-          <div className="space-y-3">
-            <h2 className="text-3xl font-medium tracking-tight text-white leading-tight">
-              The Intelligent Operating System For Modern Enterprises
-            </h2>
-            <p className="text-white/60 text-xs leading-relaxed">
-              Sentinel ERP connects every department, process, and decision into one secure ecosystem. Replace fragmented tools with a unified enterprise platform built for operational excellence, intelligent automation, and real-time visibility.
-            </p>
-          </div>
-
-          {/* Highlights checklist */}
-          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[11px] font-semibold text-white/80">
-            <div>✓ Unified Operations</div>
-            <div>✓ Intelligent Workflow Automation</div>
-            <div>✓ AI Business Intelligence</div>
-            <div>✓ Enterprise Analytics</div>
-            <div>✓ Real-Time Decision Support</div>
-            <div>✓ Secure Role-Based Access</div>
-          </div>
-
-          {/* Steps calibration */}
-          <div className="space-y-2.5">
-            <StepItem number={1} text="Create Enterprise Workspace" active />
-            <StepItem number={2} text="Configure Business Operations" />
-            <StepItem number={3} text="Activate AI Intelligence Layer" />
-          </div>
-
-          {/* Statistics blocks */}
-          <div className="flex items-center justify-between pt-4 border-t border-white/10">
-            <div>
-              <div className="text-xl font-bold text-white">95%</div>
-              <div className="text-[9px] text-white/50 font-semibold tracking-wider uppercase mt-0.5">Automation Efficiency</div>
-            </div>
-            <div className="h-6 w-px bg-white/10" />
-            <div>
-              <div className="text-xl font-bold text-white">80%</div>
-              <div className="text-[9px] text-white/50 font-semibold tracking-wider uppercase mt-0.5">Manual Reductions</div>
-            </div>
-            <div className="h-6 w-px bg-white/10" />
-            <div>
-              <div className="text-xl font-bold text-white">24/7</div>
-              <div className="text-[9px] text-white/50 font-semibold tracking-wider uppercase mt-0.5">AI Monitoring</div>
-            </div>
-          </div>
-
-        </div>
-
-        {/* Floating Badges */}
-        <div className="absolute right-8 top-16 pointer-events-none select-none z-10 flex flex-col space-y-3">
-          <div className="px-3 py-1.5 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center space-x-1.5 text-[10px] font-bold text-white uppercase tracking-widest">
-            <ShieldCheck size={12} className="text-neutral-400" />
-            <span>Enterprise Ready</span>
-          </div>
-          <div className="px-3 py-1.5 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center space-x-1.5 text-[10px] font-bold text-white uppercase tracking-widest translate-x-2">
-            <Cpu size={12} className="text-neutral-400" />
-            <span>AI Native</span>
-          </div>
-          <div className="px-3 py-1.5 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center space-x-1.5 text-[10px] font-bold text-white uppercase tracking-widest">
-            <Activity size={12} className="text-neutral-400" />
-            <span>Real-Time Intelligence</span>
-          </div>
-        </div>
-
-      </section>
-
-      {/* RIGHT COLUMN: Signup Form Panel */}
-      <section className="flex-1 flex flex-col items-center justify-center py-12 lg:py-6 px-4 sm:px-12 lg:px-16 xl:px-24 overflow-y-auto lg:overflow-hidden bg-black">
-        
+    <AuthLayout
+      heroContent={heroConfig}
+      formContent={
         <AnimatePresence mode="wait">
-          {provisioningState === 'form' ? (
-            <motion.div
-              key="form"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-              className="w-full max-w-xl space-y-8 lg:space-y-6 sm:space-y-10 text-left"
-            >
-              
-              {/* Header */}
-              <div className="space-y-1 text-center sm:text-left">
-                <h2 className="text-3xl font-medium tracking-tight text-white">Launch Your Enterprise Workspace</h2>
-                <p className="text-white/40 text-sm">Create your organization's intelligent operating system and gain access to unified operations.</p>
-              </div>
+          <motion.div
+            key="form"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="space-y-4 text-left"
+          >
+            {/* Header */}
+            <div className="space-y-1.5 text-center sm:text-left">
+              <h2 className="text-2xl sm:text-3xl font-medium tracking-tight text-white">Launch Your Workspace</h2>
+              <p className="text-white/40 text-xs sm:text-sm">Create your organization's intelligent operating system and gain access to unified operations.</p>
+            </div>
 
-              {/* SSOs */}
+            {/* SSOs */}
+            <div className="grid grid-cols-2 gap-3">
+              <SocialButton 
+                icon={
+                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
+                  </svg>
+                }
+                label="Google Workspace"
+                onClick={handleGoogleSSO}
+              />
+              <SocialButton 
+                icon={
+                  <svg viewBox="0 0 23 23" className="w-4 h-4 shrink-0" fill="currentColor">
+                    <rect x="0" y="0" width="11" height="11" fill="#F25022" />
+                    <rect x="12" y="0" width="11" height="11" fill="#7FBA00" />
+                    <rect x="0" y="12" width="11" height="11" fill="#00A4EF" />
+                    <rect x="12" y="12" width="11" height="11" fill="#FFB900" />
+                  </svg>
+                }
+                label="Microsoft Azure"
+                onClick={handleMicrosoftSSO}
+              />
+            </div>
+
+            {/* Divider */}
+            <div className="relative flex items-center py-1 select-none">
+              <div className="flex-grow border-t border-white/10" />
+              <span className="flex-shrink mx-3 text-[9px] font-bold text-white/40 uppercase tracking-widest text-center">
+                OR CONTINUE WITH ORGANIZATION DETAILS
+              </span>
+              <div className="flex-grow border-t border-white/10" />
+            </div>
+
+            {/* Form Layout */}
+            <form onSubmit={handleSubmit} className="space-y-3">
               <div className="grid grid-cols-2 gap-4">
-                <SocialButton 
-                  icon={
-                    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
-                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
-                    </svg>
-                  }
-                  label="Google Workspace"
-                  onClick={handleGoogleSSO}
-                />
-                <SocialButton 
-                  icon={
-                    <svg viewBox="0 0 23 23" className="w-4 h-4 shrink-0" fill="currentColor">
-                      <rect x="0" y="0" width="11" height="11" fill="#F25022" />
-                      <rect x="12" y="0" width="11" height="11" fill="#7FBA00" />
-                      <rect x="0" y="12" width="11" height="11" fill="#00A4EF" />
-                      <rect x="12" y="12" width="11" height="11" fill="#FFB900" />
-                    </svg>
-                  }
-                  label="Microsoft Azure"
-                  onClick={handleGoogleSSO}
-                />
-              </div>
-
-              {/* Divider */}
-              <div className="relative flex items-center py-1">
-                <div className="flex-grow border-t border-white/10" />
-                <span className="flex-shrink mx-4 text-xs font-semibold text-white/40 uppercase tracking-widest text-center">
-                  OR CONTINUE WITH ORGANIZATION DETAILS
-                </span>
-                <div className="flex-grow border-t border-white/10" />
-              </div>
-
-              {/* Form Layout */}
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <InputGroup 
-                    label="Organization Name"
-                    placeholder="Acme Manufacturing Pvt. Ltd."
-                    type="text"
-                    value={orgName}
-                    onChange={(e) => setOrgName(e.target.value)}
-                    helperText="This becomes your primary Sentinel ERP workspace."
-                  />
-                  <InputGroup 
-                    label="Industry"
-                    placeholder="e.g. Manufacturing, Logistics..."
-                    type="text"
-                    value={industry}
-                    onChange={(e) => setIndustry(e.target.value)}
-                    helperText="Used to personalize automation templates."
-                  />
-                </div>
-
                 <InputGroup 
-                  label="Business Email"
-                  placeholder="admin@company.com"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  helperText="Primary administrator account for your organization."
+                  label="Organization Name"
+                  placeholder="Acme Mfg. Ltd."
+                  type="text"
+                  value={orgName}
+                  onChange={(e) => setOrgName(e.target.value)}
+                  helperText="Your primary ERP workspace."
                 />
+                <InputGroup 
+                  label="Industry"
+                  placeholder="e.g. Manufacturing..."
+                  type="text"
+                  value={industry}
+                  onChange={(e) => setIndustry(e.target.value)}
+                  helperText="For automation templates."
+                />
+              </div>
 
-                <div className="space-y-1.5 relative text-left">
-                  <div className="flex justify-between">
-                    <label className="text-sm font-medium text-white block">Create Secure Password</label>
-                    <button 
-                      type="button" 
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="text-white/40 hover:text-white cursor-pointer"
-                    >
-                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                  <div className="relative flex items-center rounded-xl bg-brand-gray border border-white/5 transition-all duration-300">
-                    <input 
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Create a secure enterprise password"
-                      required
-                      className="w-full bg-transparent px-4 py-3 text-sm text-white placeholder-white/20 border-none outline-none h-11 focus:ring-2 focus:ring-white/20 rounded-xl"
-                    />
-                  </div>
+              <InputGroup 
+                label="Business Email"
+                placeholder="admin@company.com"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                helperText="Primary administrator account."
+              />
 
-                  {/* Password rules checkers */}
-                  <div className="grid grid-cols-4 gap-2 pt-1 text-left">
-                    <div className="flex items-center space-x-1.5 text-[9px] font-semibold tracking-wider">
-                      <div className={`h-1.5 w-1.5 rounded-full ${passwordRequirements.length ? 'bg-white' : 'bg-white/10'}`}></div>
-                      <span className={passwordRequirements.length ? 'text-white/70' : 'text-white/30'}>8+ symbols</span>
-                    </div>
-                    <div className="flex items-center space-x-1.5 text-[9px] font-semibold tracking-wider">
-                      <div className={`h-1.5 w-1.5 rounded-full ${passwordRequirements.uppercase ? 'bg-white' : 'bg-white/10'}`}></div>
-                      <span className={passwordRequirements.uppercase ? 'text-white/70' : 'text-white/30'}>1 Uppercase</span>
-                    </div>
-                    <div className="flex items-center space-x-1.5 text-[9px] font-semibold tracking-wider">
-                      <div className={`h-1.5 w-1.5 rounded-full ${passwordRequirements.number ? 'bg-white' : 'bg-white/10'}`}></div>
-                      <span className={passwordRequirements.number ? 'text-white/70' : 'text-white/30'}>1 Number</span>
-                    </div>
-                    <div className="flex items-center space-x-1.5 text-[9px] font-semibold tracking-wider">
-                      <div className={`h-1.5 w-1.5 rounded-full ${passwordRequirements.special ? 'bg-white' : 'bg-white/10'}`}></div>
-                      <span className={passwordRequirements.special ? 'text-white/70' : 'text-white/30'}>1 Special</span>
-                    </div>
-                  </div>
+              <div className="space-y-1.5 relative text-left">
+                <div className="flex justify-between items-center">
+                  <label className="text-sm font-medium text-white block">Create Secure Password</label>
+                  <button 
+                    type="button" 
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="text-white/40 hover:text-white cursor-pointer select-none transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
+                <div className="relative flex items-center rounded-xl bg-brand-gray border border-white/5 transition-all duration-300">
+                  <input 
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Create secure password"
+                    required
+                    className="w-full bg-transparent px-4 py-3 text-sm text-white placeholder-white/20 border-none outline-none h-11 focus:ring-2 focus:ring-white/20 rounded-xl"
+                  />
                 </div>
 
-                {/* Submit button */}
-                <button
-                  type="submit"
-                  disabled={!isFormValid}
-                  className={`w-full h-14 bg-white text-black font-semibold rounded-xl transition-all duration-300 relative overflow-hidden flex items-center justify-center gap-2 group mt-4 ${
-                    isFormValid 
-                      ? 'hover:bg-white/90 active:scale-[0.98] cursor-pointer' 
-                      : 'opacity-20 cursor-not-allowed border border-white/10 bg-transparent text-white'
-                  }`}
-                >
-                  <span>Create Enterprise Workspace</span>
-                  <ArrowRight size={16} />
-                </button>
-              </form>
-
-              {/* Security Assurance list */}
-              <div className="border-t border-white/5 pt-4 text-left">
-                <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest block mb-2 text-center sm:text-left">
-                  Enterprise Security Included
-                </span>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-[10px] text-white/50 font-semibold tracking-wider">
-                  <div>🛡️ Role-Based Access</div>
-                  <div>🔑 End-to-End Encryption</div>
-                  <div>🔐 Secure Authentication</div>
-                  <div>🏢 Department Governance</div>
-                  <div>📋 Audit Logs</div>
-                  <div>📈 AI monitoring</div>
+                {/* Password rules checkers */}
+                <div className="grid grid-cols-4 gap-2 pt-1 text-left min-h-[16px]">
+                  <div className="flex items-center space-x-1.5 text-[9px] font-semibold tracking-wider">
+                    <div className={`h-1.5 w-1.5 rounded-full transition-colors duration-200 ${passwordRequirements.length ? 'bg-white' : 'bg-white/10'}`}></div>
+                    <span className={passwordRequirements.length ? 'text-white/70' : 'text-white/30'}>8+ symbols</span>
+                  </div>
+                  <div className="flex items-center space-x-1.5 text-[9px] font-semibold tracking-wider">
+                    <div className={`h-1.5 w-1.5 rounded-full transition-colors duration-200 ${passwordRequirements.uppercase ? 'bg-white' : 'bg-white/10'}`}></div>
+                    <span className={passwordRequirements.uppercase ? 'text-white/70' : 'text-white/30'}>1 Uppercase</span>
+                  </div>
+                  <div className="flex items-center space-x-1.5 text-[9px] font-semibold tracking-wider">
+                    <div className={`h-1.5 w-1.5 rounded-full transition-colors duration-200 ${passwordRequirements.number ? 'bg-white' : 'bg-white/10'}`}></div>
+                    <span className={passwordRequirements.number ? 'text-white/70' : 'text-white/30'}>1 Number</span>
+                  </div>
+                  <div className="flex items-center space-x-1.5 text-[9px] font-semibold tracking-wider">
+                    <div className={`h-1.5 w-1.5 rounded-full transition-colors duration-200 ${passwordRequirements.special ? 'bg-white' : 'bg-white/10'}`}></div>
+                    <span className={passwordRequirements.special ? 'text-white/70' : 'text-white/30'}>1 Special</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Sign In Footer */}
-              <p className="text-center text-xs text-white/40">
+              {/* Submit button */}
+              <button
+                type="submit"
+                disabled={!isFormValid}
+                className={`w-full h-12 font-semibold rounded-xl transition-all duration-200 relative overflow-hidden flex items-center justify-center gap-2 group mt-4 active:scale-[0.98] ${
+                  isFormValid 
+                    ? 'bg-white text-black hover:bg-white/90 cursor-pointer shadow-lg shadow-white/5' 
+                    : 'bg-white/5 text-white/30 border border-white/10 cursor-not-allowed'
+                }`}
+              >
+                <span>Sign Up</span>
+                <ArrowRight size={15} />
+              </button>
+            </form>
+
+            {/* Security Trust Indicators */}
+            <div className="border-t border-white/5 pt-4 text-left">
+              <span className="text-[9px] font-bold text-white/35 uppercase tracking-widest block mb-2.5 text-center">
+                Enterprise Security Included
+              </span>
+              <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[9px] text-white/50 font-semibold tracking-wider">
+                <div>🛡️ Role-Based Access</div>
+                <div>🔑 Enterprise Security</div>
+                <div>🔐 Audit Logging</div>
+                <div>🏢 AI Monitoring</div>
+                <div>📋 Data Governance</div>
+              </div>
+            </div>
+
+            {/* Sign In Footer */}
+            <div className="text-center pt-2 border-t border-white/5">
+              <p className="text-xs text-white/40">
                 Already managing operations with Sentinel ERP?{' '}
                 <button 
                   onClick={() => navigate('/login')} 
                   className="text-white hover:underline font-semibold cursor-pointer"
                 >
-                  Sign In To Workspace
+                  Sign In
                 </button>
               </p>
+            </div>
 
-              {/* Premium microcopy */}
-              <p className="text-[10px] text-white/20 text-center leading-relaxed">
-                By creating a workspace, you agree to Sentinel ERP Terms of Service, Privacy Policy, and Enterprise Security Standards.
-              </p>
-
-            </motion.div>
-          ) : (
-            <motion.div
-              key="loading"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0 }}
-              className="w-full max-w-md mx-auto my-auto space-y-8 flex flex-col items-center text-center py-10"
-            >
-              {/* Spinner */}
-              <div className="relative h-24 w-24">
-                <div className="absolute inset-0 rounded-full border-2 border-white/5 animate-ping opacity-25"></div>
-                <div className="absolute inset-2 rounded-full border-2 border-white/10 animate-pulse opacity-50"></div>
-                <div className="absolute inset-4 rounded-full border-t-2 border-r-2 border-transparent border-t-white border-r-white/50 animate-spin"></div>
-                <div className="absolute inset-9 rounded-full bg-white flex items-center justify-center">
-                  <Activity className="h-5 w-5 text-black animate-pulse" />
-                </div>
-              </div>
-
-              <div className="space-y-4 w-full">
-                <div className="space-y-1">
-                  <h3 className="text-lg font-bold text-white">Initializing Platform Core</h3>
-                  <p className="text-xs text-white/40">Configuring dedicated cloud environment</p>
-                </div>
-
-                {/* Stagger step console log */}
-                <div className="bg-brand-gray border border-white/5 p-4 rounded-xl min-h-[96px] flex flex-col justify-center items-center">
-                  <div className="text-xs font-mono text-white/90 flex items-center space-x-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse shrink-0"></span>
-                    <span>{loadingSteps[loadingStep]}</span>
-                  </div>
-                  
-                  {/* Small progress meter */}
-                  <div className="w-full bg-white/5 h-1 rounded-full overflow-hidden mt-4 max-w-[200px]">
-                    <motion.div 
-                      className="bg-white h-full"
-                      initial={{ width: '0%' }}
-                      animate={{ width: `${((loadingStep + 1) / loadingSteps.length) * 100}%` }}
-                      transition={{ duration: 0.5 }}
-                    />
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
+            {/* Premium microcopy */}
+            <p className="text-[9px] text-white/20 text-center leading-relaxed">
+              By creating a workspace, you agree to Sentinel ERP Terms of Service, Privacy Policy, and Enterprise Security Standards.
+            </p>
+          </motion.div>
         </AnimatePresence>
-
-      </section>
-
-    </main>
+      }
+    />
   );
 }
 
 /* ═══════════════════════════════════════════════════════════
    3. ENTERPRISE LOG IN COMPONENT
    ═══════════════════════════════════════════════════════════ */
-function LoginPage({ setUser }: { setUser: (user: UserSession | null) => void }) {
+function LoginPage({ onLoginSuccess }: { onLoginSuccess: (user: UserSession) => void }) {
   const navigate = useNavigate();
 
   // Form states
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [provisioningState, setProvisioningState] = useState<'form' | 'loading'>('form');
-  const [loadingStep, setLoadingStep] = useState(0);
-
-  const loadingSteps = [
-    "Establishing secure connection key...",
-    "Querying tenant ledger registry...",
-    "Authenticating credential matrix...",
-    "Provisioning session encryption key...",
-    "Syncing active company operations...",
-    "Launching Command Center interface..."
-  ];
 
   const isFormValid = email.includes('@') && password.length >= 6;
-
-  const runProvisioning = (authUser: any) => {
-    setProvisioningState('loading');
-    setLoadingStep(0);
-
-    const interval = setInterval(() => {
-      setLoadingStep((prev) => {
-        if (prev >= loadingSteps.length - 1) {
-          clearInterval(interval);
-          setTimeout(() => {
-            setUser({
-              uid: authUser.uid,
-              email: authUser.email || email,
-              displayName: authUser.displayName || email.split('@')[0],
-              orgName: localStorage.getItem('last_org_name') || 'Acme Industries',
-              industry: localStorage.getItem('last_industry') || 'Manufacturing'
-            });
-            navigate('/dashboard-preview');
-          }, 800);
-          return prev;
-        }
-        return prev + 1;
-      });
-    }, 900);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isFormValid) return;
 
-    const authUser = await loginWithEmail(email, password);
+    const normalizedEmail = email.trim().toLowerCase();
+    if (normalizedEmail === 'agent@gmail.com') {
+      onLoginSuccess({
+        uid: "mock-agent-user-id",
+        email: "agent@gmail.com",
+        displayName: "AI Agent Coordinator",
+        orgName: "Sentinel Command Hub",
+        industry: "Autonomous Operations"
+      });
+      return;
+    }
+    if (normalizedEmail === 'admin@gmail.com') {
+      onLoginSuccess({
+        uid: "mock-microsoft-admin-user",
+        email: "admin@gmail.com",
+        displayName: "Microsoft Admin",
+        orgName: "Sentinel Command Hub",
+        industry: "Autonomous Operations"
+      });
+      return;
+    }
+
+    const authUser = await loginWithEmail(normalizedEmail, password);
     if (authUser) {
-      runProvisioning(authUser);
+      onLoginSuccess({
+        uid: authUser.uid,
+        email: normalizedEmail,
+        displayName: (authUser as any).displayName || normalizedEmail.split('@')[0],
+        orgName: localStorage.getItem('last_org_name') || 'Acme Industries',
+        industry: localStorage.getItem('last_industry') || 'Manufacturing'
+      });
     }
   };
 
   const handleGoogleSSO = async () => {
     const authUser = await loginWithGoogle();
     if (authUser) {
-      runProvisioning(authUser);
+      onLoginSuccess({
+        uid: authUser.uid,
+        email: authUser.email || "google@user.com",
+        displayName: authUser.displayName || "Google User",
+        orgName: localStorage.getItem('last_org_name') || 'Acme Industries',
+        industry: localStorage.getItem('last_industry') || 'Manufacturing'
+      });
     }
   };
 
+  const handleMicrosoftSSO = () => {
+    onLoginSuccess({
+      uid: "mock-microsoft-admin-user",
+      displayName: "Microsoft Admin",
+      email: "admin@gmail.com",
+      provider: "microsoft",
+      orgName: "Sentinel Command Hub",
+      industry: "Autonomous Operations"
+    });
+  };
+
+  const heroConfig = {
+    title: "The Intelligent Operating System For Modern Enterprises",
+    description: "Manage finance, workforce, inventory, procurement, analytics, automation, and AI through a single intelligent enterprise operating system.",
+    steps: [
+      { number: 1, text: "Verify Enterprise Identity", active: true },
+      { number: 2, text: "Secure Ledger Framework" },
+      { number: 3, text: "Launch Agentic AI Core" }
+    ],
+    stats: [
+      { value: "95%", label: "Automation Efficiency" },
+      { value: "80%", label: "Manual Reduction" },
+      { value: "24/7", label: "AI Monitoring" }
+    ]
+  };
+
   return (
-    <main className="flex min-h-screen w-full bg-black selection:bg-white/30 p-2 lg:h-screen lg:overflow-hidden lg:p-4 transition-all duration-500">
-      
-      {/* LEFT COLUMN: Hero (Immersive Video) */}
-      <section className="relative hidden lg:flex w-[52%] flex-col items-center justify-end pb-32 px-12 rounded-3xl overflow-hidden shadow-2xl h-full border border-white/5 select-none">
-        
-        {/* Absolute Background Video */}
-        <video 
-          className="absolute inset-0 w-full h-full object-cover"
-          autoPlay 
-          muted 
-          loop 
-          playsInline
-        >
-          <source 
-            src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260506_081238_406ed0e3-5d83-436e-a512-0bbff7ec5b95.mp4" 
-            type="video/mp4" 
-          />
-        </video>
-
-        {/* Hero Content Container */}
-        <div className="z-10 w-full max-w-sm space-y-8 text-left">
-          
-          {/* Logo row */}
-          <div 
-            className="flex items-center space-x-2.5 cursor-pointer"
-            onClick={() => navigate('/')}
-          >
-            <div className="h-6 w-6 rounded-full bg-white flex items-center justify-center border border-white">
-              <span className="text-black font-black text-xs">S</span>
-            </div>
-            <span className="text-xl font-bold tracking-tight text-white">SENTINEL ERP</span>
-          </div>
-
-          {/* Heading */}
-          <div className="space-y-3">
-            <h2 className="text-3xl font-medium tracking-tight text-white leading-tight">
-              The Intelligent Operating System For Modern Enterprises
-            </h2>
-            <p className="text-white/60 text-xs leading-relaxed">
-              Sentinel ERP connects every department, process, and decision into one secure ecosystem. Replace fragmented tools with a unified enterprise platform built for operational excellence, intelligent automation, and real-time visibility.
-            </p>
-          </div>
-
-          {/* Highlights checklist */}
-          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[11px] font-semibold text-white/80">
-            <div>✓ Unified Operations</div>
-            <div>✓ Intelligent Workflow Automation</div>
-            <div>✓ AI Business Intelligence</div>
-            <div>✓ Enterprise Analytics</div>
-            <div>✓ Real-Time Decision Support</div>
-            <div>✓ Secure Role-Based Access</div>
-          </div>
-
-          {/* Steps calibration */}
-          <div className="space-y-2.5">
-            <StepItem number={1} text="Verify Enterprise Identity" active />
-            <StepItem number={2} text="Secure Ledger & Operations Framework" />
-            <StepItem number={3} text="Launch Agentic AI Intelligence Core" />
-          </div>
-
-          {/* Statistics blocks */}
-          <div className="flex items-center justify-between pt-4 border-t border-white/10">
-            <div>
-              <div className="text-xl font-bold text-white">95%</div>
-              <div className="text-[9px] text-white/50 font-semibold tracking-wider uppercase mt-0.5">Automation Efficiency</div>
-            </div>
-            <div className="h-6 w-px bg-white/10" />
-            <div>
-              <div className="text-xl font-bold text-white">80%</div>
-              <div className="text-[9px] text-white/50 font-semibold tracking-wider uppercase mt-0.5">Manual Reductions</div>
-            </div>
-            <div className="h-6 w-px bg-white/10" />
-            <div>
-              <div className="text-xl font-bold text-white">24/7</div>
-              <div className="text-[9px] text-white/50 font-semibold tracking-wider uppercase mt-0.5">AI Monitoring</div>
-            </div>
-          </div>
-
-        </div>
-
-        {/* Floating Badges */}
-        <div className="absolute right-8 top-16 pointer-events-none select-none z-10 flex flex-col space-y-3">
-          <div className="px-3 py-1.5 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center space-x-1.5 text-[10px] font-bold text-white uppercase tracking-widest">
-            <ShieldCheck size={12} className="text-neutral-400" />
-            <span>Enterprise Ready</span>
-          </div>
-          <div className="px-3 py-1.5 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center space-x-1.5 text-[10px] font-bold text-white uppercase tracking-widest translate-x-2">
-            <Cpu size={12} className="text-neutral-400" />
-            <span>AI Native</span>
-          </div>
-        </div>
-
-      </section>
-
-      {/* RIGHT COLUMN: Login Form Panel */}
-      <section className="flex-1 flex flex-col items-center justify-center py-12 lg:py-6 px-4 sm:px-12 lg:px-16 xl:px-24 overflow-y-auto lg:overflow-hidden bg-black">
-        
+    <AuthLayout
+      heroContent={heroConfig}
+      formContent={
         <AnimatePresence mode="wait">
-          {provisioningState === 'form' ? (
-            <motion.div
-              key="form"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-              className="w-full max-w-xl space-y-8 lg:space-y-6 sm:space-y-10 text-left"
-            >
-              
-              {/* Header */}
-              <div className="space-y-1 text-center sm:text-left">
-                <h2 className="text-3xl font-medium tracking-tight text-white">Welcome Back</h2>
-                <p className="text-white/40 text-sm">Access your Sentinel ERP workspace and continue managing operations, automation, analytics, and intelligence.</p>
-              </div>
+          <motion.div
+            key="form"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="space-y-4 text-left"
+          >
+            {/* Header */}
+            <div className="space-y-1.5 text-center sm:text-left">
+              <h2 className="text-2xl sm:text-3xl font-medium tracking-tight text-white">Welcome Back</h2>
+              <p className="text-white/40 text-xs sm:text-sm">Access your Sentinel ERP workspace and continue managing operations, automation, analytics, and intelligence.</p>
+            </div>
 
-              {/* SSOs */}
-              <div className="grid grid-cols-2 gap-4">
-                <SocialButton 
-                  icon={
-                    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
-                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
-                    </svg>
-                  }
-                  label="Google Workspace"
-                  onClick={handleGoogleSSO}
-                />
-                <SocialButton 
-                  icon={
-                    <svg viewBox="0 0 23 23" className="w-4 h-4 shrink-0" fill="currentColor">
-                      <rect x="0" y="0" width="11" height="11" fill="#F25022" />
-                      <rect x="12" y="0" width="11" height="11" fill="#7FBA00" />
-                      <rect x="0" y="12" width="11" height="11" fill="#00A4EF" />
-                      <rect x="12" y="12" width="11" height="11" fill="#FFB900" />
-                    </svg>
-                  }
-                  label="Microsoft Azure"
-                  onClick={handleGoogleSSO}
-                />
-              </div>
+            {/* SSOs */}
+            <div className="grid grid-cols-2 gap-3">
+              <SocialButton 
+                icon={
+                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
+                  </svg>
+                }
+                label="Google Workspace"
+                onClick={handleGoogleSSO}
+              />
+              <SocialButton 
+                icon={
+                  <svg viewBox="0 0 23 23" className="w-4 h-4 shrink-0" fill="currentColor">
+                    <rect x="0" y="0" width="11" height="11" fill="#F25022" />
+                    <rect x="12" y="0" width="11" height="11" fill="#7FBA00" />
+                    <rect x="0" y="12" width="11" height="11" fill="#00A4EF" />
+                    <rect x="12" y="12" width="11" height="11" fill="#FFB900" />
+                  </svg>
+                }
+                label="Microsoft Azure"
+                onClick={handleMicrosoftSSO}
+              />
+            </div>
 
-              {/* Divider */}
-              <div className="relative flex items-center py-1">
-                <div className="flex-grow border-t border-white/10" />
-                <span className="flex-shrink mx-4 text-xs font-semibold text-white/40 uppercase tracking-widest text-center">
-                  OR CONTINUE WITH WORKSPACE CREDENTIALS
-                </span>
-                <div className="flex-grow border-t border-white/10" />
-              </div>
+            {/* Divider */}
+            <div className="relative flex items-center py-1 select-none">
+              <div className="flex-grow border-t border-white/10" />
+              <span className="flex-shrink mx-3 text-[9px] font-bold text-white/40 uppercase tracking-widest text-center">
+                OR CONTINUE WITH WORKSPACE CREDENTIALS
+              </span>
+              <div className="flex-grow border-t border-white/10" />
+            </div>
 
-              {/* Form Layout */}
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <InputGroup 
-                  label="Business Email"
-                  placeholder="admin@company.com"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  helperText="Enter your registered administrator email."
-                />
+            {/* Form Layout */}
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <InputGroup 
+                label="Business Email"
+                placeholder="admin@company.com"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                helperText="Your registered administrator email."
+              />
 
-                <div className="space-y-1.5 relative text-left">
-                  <div className="flex justify-between">
-                    <label className="text-sm font-medium text-white block">Password</label>
-                    <button 
-                      type="button" 
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="text-white/40 hover:text-white cursor-pointer"
-                    >
-                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                  <div className="relative flex items-center rounded-xl bg-brand-gray border border-white/5 transition-all duration-300">
-                    <input 
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Enter your secure password"
-                      required
-                      className="w-full bg-transparent px-4 py-3 text-sm text-white placeholder-white/20 border-none outline-none h-11 focus:ring-2 focus:ring-white/20 rounded-xl"
-                    />
-                  </div>
+              <div className="space-y-1.5 relative text-left">
+                <div className="flex justify-between items-center">
+                  <label className="text-sm font-medium text-white block">Password</label>
+                  <button 
+                    type="button" 
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="text-white/40 hover:text-white cursor-pointer select-none transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
                 </div>
+                <div className="relative flex items-center rounded-xl bg-brand-gray border border-white/5 transition-all duration-300">
+                  <input 
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your secure password"
+                    required
+                    className="w-full bg-transparent px-4 py-3 text-sm text-white placeholder-white/20 border-none outline-none h-11 focus:ring-2 focus:ring-white/20 rounded-xl"
+                  />
+                </div>
+              </div>
 
-                {/* Submit button */}
-                <button
-                  type="submit"
-                  disabled={!isFormValid}
-                  className={`w-full h-14 bg-white text-black font-semibold rounded-xl transition-all duration-300 relative overflow-hidden flex items-center justify-center gap-2 mt-6 ${
-                    isFormValid 
-                      ? 'hover:bg-white/90 active:scale-[0.98] cursor-pointer' 
-                      : 'opacity-20 cursor-not-allowed border border-white/10 bg-transparent text-white'
-                  }`}
-                >
-                  <span>Access Workspace</span>
-                  <ArrowRight size={16} />
-                </button>
-              </form>
+              {/* Submit button */}
+              <button
+                type="submit"
+                disabled={!isFormValid}
+                className={`w-full h-12 font-semibold rounded-xl transition-all duration-200 relative overflow-hidden flex items-center justify-center gap-2 group mt-4 active:scale-[0.98] ${
+                  isFormValid 
+                    ? 'bg-white text-black hover:bg-white/90 cursor-pointer shadow-lg shadow-white/5' 
+                    : 'bg-white/5 text-white/30 border border-white/10 cursor-not-allowed'
+                }`}
+              >
+                <span>Sign In</span>
+                <ArrowRight size={15} />
+              </button>
+            </form>
 
-              {/* Sign In Footer */}
-              <p className="text-center text-xs text-white/40">
+            {/* Security Trust Indicators */}
+            <div className="border-t border-white/5 pt-4 text-left">
+              <span className="text-[9px] font-bold text-white/35 uppercase tracking-widest block mb-2.5 text-center">
+                Enterprise Security Included
+              </span>
+              <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[9px] text-white/50 font-semibold tracking-wider">
+                <div>🛡️ Role-Based Access</div>
+                <div>🔑 Enterprise Security</div>
+                <div>🔐 Audit Logging</div>
+                <div>🏢 AI Monitoring</div>
+                <div>📋 Data Governance</div>
+              </div>
+            </div>
+
+            {/* Sign In Footer */}
+            <div className="text-center pt-2 border-t border-white/5">
+              <p className="text-xs text-white/40">
                 Don't have an enterprise workspace?{' '}
                 <button 
                   onClick={() => navigate('/signup')} 
@@ -2091,515 +2347,26 @@ function LoginPage({ setUser }: { setUser: (user: UserSession | null) => void })
                   Create One
                 </button>
               </p>
+            </div>
 
-              {/* Premium microcopy */}
-              <p className="text-[10px] text-white/20 text-center leading-relaxed">
-                By logging in, you agree to Sentinel ERP Terms of Service, Privacy Policy, and Enterprise Security Standards.
-              </p>
-
-            </motion.div>
-          ) : (
-            <motion.div
-              key="loading"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0 }}
-              className="w-full max-w-md mx-auto my-auto space-y-8 flex flex-col items-center text-center py-10"
-            >
-              {/* Spinner */}
-              <div className="relative h-24 w-24">
-                <div className="absolute inset-0 rounded-full border-2 border-white/5 animate-ping opacity-25"></div>
-                <div className="absolute inset-2 rounded-full border-2 border-white/10 animate-pulse opacity-50"></div>
-                <div className="absolute inset-4 rounded-full border-t-2 border-r-2 border-transparent border-t-white border-r-white/50 animate-spin"></div>
-                <div className="absolute inset-9 rounded-full bg-white flex items-center justify-center">
-                  <Activity className="h-5 w-5 text-black animate-pulse" />
-                </div>
-              </div>
-
-              <div className="space-y-4 w-full">
-                <div className="space-y-1">
-                  <h3 className="text-lg font-bold text-white">Opening Workspace Node</h3>
-                  <p className="text-xs text-white/40">Verifying security certificates</p>
-                </div>
-
-                {/* Stagger step console log */}
-                <div className="bg-brand-gray border border-white/5 p-4 rounded-xl min-h-[96px] flex flex-col justify-center items-center">
-                  <div className="text-xs font-mono text-white/90 flex items-center space-x-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse shrink-0"></span>
-                    <span>{loadingSteps[loadingStep]}</span>
-                  </div>
-                  
-                  {/* Small progress meter */}
-                  <div className="w-full bg-white/5 h-1 rounded-full overflow-hidden mt-4 max-w-[200px]">
-                    <motion.div 
-                      className="bg-white h-full"
-                      initial={{ width: '0%' }}
-                      animate={{ width: `${((loadingStep + 1) / loadingSteps.length) * 100}%` }}
-                      transition={{ duration: 0.5 }}
-                    />
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
+            {/* Premium microcopy */}
+            <p className="text-[9px] text-white/20 text-center leading-relaxed">
+              By logging in, you agree to Sentinel ERP Terms of Service, Privacy Policy, and Enterprise Security Standards.
+            </p>
+          </motion.div>
         </AnimatePresence>
-
-      </section>
-
-    </main>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════
-   4. INTERACTIVE DASHBOARD PREVIEW
-   ═══════════════════════════════════════════════════════════ */
-function DashboardPreview({ user, setUser }: AnimatedRoutesProps) {
-  const navigate = useNavigate();
-  const [currentTab, setCurrentTab] = useState<'kpi' | 'hr' | 'finance' | 'copilot'>('kpi');
-  
-  // Simulated Chatbot inside dashboard
-  const [chatInput, setChatInput] = useState('');
-  const [chatHistory, setChatHistory] = useState<Array<{ sender: 'user' | 'bot'; text: string }>>([
-    { sender: 'bot', text: 'Sentinel AI Core initialized. Enter natural language instructions to configure workflows or query the ledger.' }
-  ]);
-  const [chatTyping, setChatTyping] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatHistory, chatTyping]);
-
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!chatInput.trim() || chatTyping) return;
-
-    const query = chatInput.trim();
-    setChatHistory(prev => [...prev, { sender: 'user', text: query }]);
-    setChatInput('');
-    setChatTyping(true);
-
-    setTimeout(() => {
-      setChatTyping(false);
-      let reply = '';
-      if (query.toLowerCase().includes('approval')) {
-        reply = 'Loaded 4 open approval sequences. CFO authorization pending for Purchase Order SN-PO-991 (₹4,20,000). Would you like me to trigger an automated SLA reminder?';
-      } else if (query.toLowerCase().includes('revenue') || query.toLowerCase().includes('finance')) {
-        reply = 'May Revenue totaled ₹4.2Cr, yielding a profit margin of 28.6%. Revenue forecast for June stands at ₹4.55Cr with a 92% confidence index.';
-      } else if (query.toLowerCase().includes('employee') || query.toLowerCase().includes('hr')) {
-        reply = 'Total active headcount is 1,284. Average workforce utilization rate matches 91.3%. No anomalies found in the May payroll ledger.';
-      } else {
-        reply = `Command received. Querying corporate database for "${query}"... Operations status matches optimal parameters. Ledgers are aligned.`;
       }
-      setChatHistory(prev => [...prev, { sender: 'bot', text: reply }]);
-    }, 1200);
-  };
-
-  const handleSignOut = () => {
-    setUser(null);
-    navigate('/');
-  };
-
-  return (
-    <div className="flex h-screen w-full bg-black text-white font-sans overflow-hidden select-none border border-white/10 rounded-2xl">
-      
-      {/* Sidebar navigation */}
-      <aside className="w-64 border-r border-white/8 bg-neutral-950 p-4 flex flex-col justify-between shrink-0">
-        <div className="space-y-6">
-          <div 
-            onClick={() => navigate('/')} 
-            className="flex items-center space-x-2.5 cursor-pointer px-2"
-          >
-            <div className="h-6 w-6 rounded-full bg-white flex items-center justify-center">
-              <span className="text-black font-extrabold text-xs">S</span>
-            </div>
-            <span className="font-bold tracking-tight text-white text-md">SENTINEL ERP</span>
-          </div>
-
-          <nav className="space-y-1">
-            <button 
-              onClick={() => setCurrentTab('kpi')}
-              className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-xs font-semibold tracking-wider uppercase transition-all ${
-                currentTab === 'kpi' ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <Compass size={14} />
-              <span>Command Center</span>
-            </button>
-            <button 
-              onClick={() => setCurrentTab('hr')}
-              className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-xs font-semibold tracking-wider uppercase transition-all ${
-                currentTab === 'hr' ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <Users size={14} />
-              <span>HRMS Operations</span>
-            </button>
-            <button 
-              onClick={() => setCurrentTab('finance')}
-              className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-xs font-semibold tracking-wider uppercase transition-all ${
-                currentTab === 'finance' ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <LineChart size={14} />
-              <span>Finance Ledgers</span>
-            </button>
-            <button 
-              onClick={() => setCurrentTab('copilot')}
-              className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-xs font-semibold tracking-wider uppercase transition-all ${
-                currentTab === 'copilot' ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <Cpu size={14} />
-              <span>AI Copilot Chat</span>
-            </button>
-          </nav>
-        </div>
-
-        <div className="space-y-4">
-          <div className="p-3 bg-white/5 rounded-xl border border-white/5 space-y-1 text-left">
-            <div className="flex items-center space-x-2 text-[10px] text-white/50 font-bold uppercase tracking-wider">
-              <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse"></span>
-              <span>Active Operator</span>
-            </div>
-            <div className="text-[11px] font-semibold text-white/90 overflow-hidden text-ellipsis">{user?.displayName || 'Administrator'}</div>
-            <div className="text-[9px] font-mono text-white/40 overflow-hidden text-ellipsis">{user?.email}</div>
-          </div>
-
-          <div className="p-3 bg-white/5 rounded-xl border border-white/5 space-y-1 text-left">
-            <div className="flex items-center space-x-2 text-[10px] text-white/50 font-bold uppercase tracking-wider">
-              <span>Workspace Node</span>
-            </div>
-            <div className="text-[11px] font-mono text-white/70 overflow-hidden text-ellipsis">
-              {user?.orgName ? user.orgName.toLowerCase().replace(/[^a-z0-9]/g, '') + '.sentinel.io' : 'acme.sentinel.io'}
-            </div>
-          </div>
-
-          <button 
-            onClick={handleSignOut} 
-            className="w-full py-2.5 border border-white/10 hover:border-white/20 rounded-xl text-xs font-semibold text-white/60 hover:text-white transition-all cursor-pointer text-center block"
-          >
-            Exit Workspace
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Panel */}
-      <main className="flex-1 flex flex-col overflow-hidden bg-neutral-900/40 text-left">
-        
-        {/* Top Header */}
-        <header className="h-14 border-b border-white/8 px-6 flex items-center justify-between shrink-0">
-          <div className="flex items-center space-x-3 text-left">
-            <h1 className="text-sm font-bold tracking-tight text-white uppercase text-left">
-              {currentTab === 'kpi' && 'Command Center Overview'}
-              {currentTab === 'hr' && 'Human Resource Management System'}
-              {currentTab === 'finance' && 'Corporate Financial Ledgers'}
-              {currentTab === 'copilot' && 'Sentinel Agentic AI Core'}
-            </h1>
-            <span className="h-4 w-px bg-white/10" />
-            <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest bg-white/5 px-2 py-0.5 rounded border border-white/5">
-              Secure Session Active
-            </span>
-          </div>
-
-          <div className="flex items-center space-x-2 text-xs font-medium text-white/80">
-            <span className="h-2 w-2 rounded-full bg-white animate-pulse"></span>
-            <span>OS VERSION 7.1.0</span>
-          </div>
-        </header>
-
-        {/* Dynamic Inner Dashboard Content */}
-        <div className="flex-1 p-6 overflow-y-auto space-y-6">
-          <AnimatePresence mode="wait">
-            
-            {/* TAB 1: GENERAL OVERVIEW */}
-            {currentTab === 'kpi' && (
-              <motion.div
-                key="kpi"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="space-y-6"
-              >
-                {/* Stats grid */}
-                <div className="grid grid-cols-4 gap-4">
-                  <div className="p-5 bg-black/40 border border-white/8 rounded-xl space-y-2">
-                    <div className="text-[10px] text-white/40 font-bold uppercase tracking-wider">Corporate Revenue (Q2 MTD)</div>
-                    <div className="text-2xl font-bold tracking-tight">₹4.20 Cr</div>
-                    <div className="text-[10px] text-white/60">↑ 18.4% compared to Q1</div>
-                  </div>
-                  <div className="p-5 bg-black/40 border border-white/8 rounded-xl space-y-2">
-                    <div className="text-[10px] text-white/40 font-bold uppercase tracking-wider">Active Workspace Staff</div>
-                    <div className="text-2xl font-bold tracking-tight">1,284</div>
-                    <div className="text-[10px] text-white/60">✓ 91.3% utilization rate</div>
-                  </div>
-                  <div className="p-5 bg-black/40 border border-white/8 rounded-xl space-y-2">
-                    <div className="text-[10px] text-white/40 font-bold uppercase tracking-wider">Unassigned Approvals</div>
-                    <div className="text-2xl font-bold tracking-tight">47</div>
-                    <div className="text-[10px] text-white/60">⚠️ CFO escalations active</div>
-                  </div>
-                  <div className="p-5 bg-black/40 border border-white/8 rounded-xl space-y-2">
-                    <div className="text-[10px] text-white/40 font-bold uppercase tracking-wider">Inventory Accuracy</div>
-                    <div className="text-2xl font-bold tracking-tight">96.2%</div>
-                    <div className="text-[10px] text-white/60">✓ Optimum reorder trigger</div>
-                  </div>
-                </div>
-
-                {/* Operations grid panels */}
-                <div className="grid grid-cols-3 gap-6">
-                  {/* Left checklist panel */}
-                  <div className="col-span-2 p-5 bg-black/40 border border-white/8 rounded-2xl space-y-4 text-left">
-                    <div className="flex justify-between items-center text-left">
-                      <span className="text-xs font-bold text-white/50 uppercase tracking-widest">Active Operations Queue</span>
-                      <span className="px-2 py-0.5 text-[9px] font-bold bg-white/10 text-white rounded border border-white/10 uppercase text-center">Ledger Sync</span>
-                    </div>
-
-                    <div className="space-y-3 text-left">
-                      <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
-                        <div className="flex items-center space-x-3">
-                          <div className="h-2 w-2 rounded-full bg-white animate-pulse" />
-                          <div className="text-left">
-                            <div className="text-xs font-semibold text-left">Purchase Order approval — Office Equipment</div>
-                            <div className="text-[10px] text-white/40 text-left">Procurement · ₹3,20,000 · Pending Manager Approval</div>
-                          </div>
-                        </div>
-                        <span className="px-2 py-0.5 text-[9px] font-semibold bg-white/5 border border-white/5 rounded-full text-white/50 text-center">CFO Review</span>
-                      </div>
-                      <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
-                        <div className="flex items-center space-x-3">
-                          <div className="h-2 w-2 rounded-full bg-white" />
-                          <div className="text-left">
-                            <div className="text-xs font-semibold text-left">Asset Assignment — Developer Laptop #1092</div>
-                            <div className="text-[10px] text-white/40 text-left">IT Assets · Assigned to Jane Doe · Provisioned</div>
-                          </div>
-                        </div>
-                        <span className="px-2 py-0.5 text-[9px] font-semibold bg-white/10 border border-white/10 rounded-full text-white text-center">Active</span>
-                      </div>
-                      <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
-                        <div className="flex items-center space-x-3">
-                          <div className="h-2 w-2 rounded-full bg-white" />
-                          <div className="text-left">
-                            <div className="text-xs font-semibold text-left">Leave approval request — Alex Sterling</div>
-                            <div className="text-[10px] text-white/40 text-left">HRMS · Annual Leave · Approved by Dept Head</div>
-                          </div>
-                        </div>
-                        <span className="px-2 py-0.5 text-[9px] font-semibold bg-white/10 border border-white/10 rounded-full text-white text-center">Active</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right quick stats panel */}
-                  <div className="p-5 bg-black/40 border border-white/8 rounded-2xl space-y-4">
-                    <span className="text-xs font-bold text-white/50 uppercase tracking-widest block text-left">AI-Powered Forecasting</span>
-                    <div className="space-y-3 text-left">
-                      <div className="space-y-1 text-left">
-                        <div className="flex justify-between text-[11px] font-semibold text-left">
-                          <span>Inventory Shortage Risk</span>
-                          <span className="text-white">14% (SKU-1092)</span>
-                        </div>
-                        <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
-                          <div className="bg-white h-full" style={{ width: '14%' }}></div>
-                        </div>
-                      </div>
-                      <div className="space-y-1 text-left">
-                        <div className="flex justify-between text-[11px] font-semibold text-left">
-                          <span>Workflow Automation Rate</span>
-                          <span className="text-white">84%</span>
-                        </div>
-                        <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
-                          <div className="bg-white h-full" style={{ width: '84%' }}></div>
-                        </div>
-                      </div>
-                      <div className="space-y-1 text-left">
-                        <div className="flex justify-between text-[11px] font-semibold text-left">
-                          <span>Ledger Audit Synchronization</span>
-                          <span className="text-white">100%</span>
-                        </div>
-                        <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
-                          <div className="bg-white h-full" style={{ width: '100%' }}></div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {/* TAB 2: HRMS */}
-            {currentTab === 'hr' && (
-              <motion.div
-                key="hr"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="space-y-6"
-              >
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="p-5 bg-black/40 border border-white/8 rounded-xl text-left">
-                    <div className="text-[10px] text-white/40 font-bold uppercase tracking-wider text-left">Total Headcount</div>
-                    <div className="text-2xl font-bold mt-1 text-left">1,284</div>
-                  </div>
-                  <div className="p-5 bg-black/40 border border-white/8 rounded-xl text-left">
-                    <div className="text-[10px] text-white/40 font-bold uppercase tracking-wider text-left">May Utilisation Rate</div>
-                    <div className="text-2xl font-bold mt-1 text-left">91.3%</div>
-                  </div>
-                  <div className="p-5 bg-black/40 border border-white/8 rounded-xl text-left">
-                    <div className="text-[10px] text-white/40 font-bold uppercase tracking-wider text-left">Hires This Month</div>
-                    <div className="text-2xl font-bold mt-1 text-left">12</div>
-                  </div>
-                </div>
-
-                <div className="p-5 bg-black/40 border border-white/8 rounded-2xl space-y-4 text-left">
-                  <span className="text-xs font-bold text-white/50 uppercase tracking-widest block text-left">Workforce Distribution</span>
-                  <div className="space-y-3 text-left">
-                    <div className="flex justify-between text-xs border-b border-white/5 pb-2 text-left">
-                      <span className="text-white/60">Operations</span>
-                      <span className="font-bold text-right">428 Staff</span>
-                    </div>
-                    <div className="flex justify-between text-xs border-b border-white/5 pb-2 text-left">
-                      <span className="text-white/60">Engineering</span>
-                      <span className="font-bold text-right">310 Staff</span>
-                    </div>
-                    <div className="flex justify-between text-xs border-b border-white/5 pb-2 text-left">
-                      <span className="text-white/60">Sales &amp; Marketing</span>
-                      <span className="font-bold text-right">295 Staff</span>
-                    </div>
-                    <div className="flex justify-between text-xs pb-2 text-left">
-                      <span className="text-white/60">Finance &amp; HR</span>
-                      <span className="font-bold text-right">251 Staff</span>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {/* TAB 3: FINANCE */}
-            {currentTab === 'finance' && (
-              <motion.div
-                key="finance"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="space-y-6"
-              >
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-5 bg-black/40 border border-white/8 rounded-xl text-left">
-                    <div className="text-[10px] text-white/40 font-bold uppercase tracking-wider text-left">Gross Operating Profit</div>
-                    <div className="text-2xl font-bold mt-1 text-left">₹1.72 Cr</div>
-                    <p className="text-[10px] text-white/50 mt-1 text-left">44.7% margin on ₹3.82Cr May billings</p>
-                  </div>
-                  <div className="p-5 bg-black/40 border border-white/8 rounded-xl text-left">
-                    <div className="text-[10px] text-white/40 font-bold uppercase tracking-wider text-left">CFO Ledger Balance</div>
-                    <div className="text-2xl font-bold mt-1 text-left">₹18.42 Cr</div>
-                    <p className="text-[10px] text-white/50 mt-1 text-left">SOC 2 compliant isolated bank sync</p>
-                  </div>
-                </div>
-
-                <div className="p-5 bg-black/40 border border-white/8 rounded-2xl space-y-4 text-left">
-                  <span className="text-xs font-bold text-white/50 uppercase tracking-widest block text-left">Recent Finance Actions</span>
-                  <div className="space-y-3 text-left">
-                    <div className="flex justify-between items-center text-xs p-2 bg-white/5 rounded border border-white/5 text-left">
-                      <span>Payroll Disbursed — May</span>
-                      <span className="font-mono text-white/60 text-right">₹1,12,04,200</span>
-                    </div>
-                    <div className="flex justify-between items-center text-xs p-2 bg-white/5 rounded border border-white/5 text-left">
-                      <span>Vendor Invoices Settled (Tata Mfg)</span>
-                      <span className="font-mono text-white/60 text-right">₹24,80,000</span>
-                    </div>
-                    <div className="flex justify-between items-center text-xs p-2 bg-white/5 rounded border border-white/5 text-left">
-                      <span>CFO Approved Expense Claim — Sales Q2</span>
-                      <span className="font-mono text-white/60 text-right">₹8,45,000</span>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {/* TAB 4: AI CHAT DIRECT */}
-            {currentTab === 'copilot' && (
-              <motion.div
-                key="copilot"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="flex flex-col h-[480px] bg-black/40 border border-white/8 rounded-2xl overflow-hidden text-left"
-              >
-                {/* Chat history */}
-                <div className="flex-1 p-4 overflow-y-auto space-y-4">
-                  {chatHistory.map((msg, index) => (
-                    <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[80%] rounded-xl px-4 py-2.5 text-xs leading-relaxed ${
-                        msg.sender === 'user' ? 'bg-white/10 text-white' : 'bg-white/5 border border-white/5 text-white/90'
-                      }`}>
-                        {msg.text}
-                      </div>
-                    </div>
-                  ))}
-                  {chatTyping && (
-                    <div className="flex justify-start">
-                      <div className="ai-typing-indicator px-2">
-                        <span className="typing-dot" />
-                        <span className="typing-dot" />
-                        <span className="typing-dot" />
-                      </div>
-                    </div>
-                  )}
-                  <div ref={bottomRef} />
-                </div>
-
-                {/* Input box */}
-                <form onSubmit={handleSendMessage} className="p-3 border-t border-white/8 bg-neutral-950 flex items-center gap-2">
-                  <input 
-                    type="text"
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    placeholder="Type instructions (e.g. 'Show pending approvals', 'Analyze revenue')..."
-                    className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs outline-none text-white focus:border-white/20 focus:ring-1 focus:ring-white/10"
-                  />
-                  <button 
-                    type="submit"
-                    className="h-9 px-4 bg-white text-black text-xs font-semibold rounded-xl hover:bg-neutral-200 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                  >
-                    <span>Send</span>
-                    <ArrowRight size={12} />
-                  </button>
-                </form>
-              </motion.div>
-            )}
-
-          </AnimatePresence>
-        </div>
-
-      </main>
-    </div>
+    />
   );
 }
+
+
 
 /* ═══════════════════════════════════════════════════════════
    5. ATOM / BASE COMPONENT DECLARATIONS
    ═══════════════════════════════════════════════════════════ */
 
-interface StepItemProps {
-  number: number;
-  text: string;
-  active?: boolean;
-}
 
-function StepItem({ number, text, active = false }: StepItemProps) {
-  return (
-    <div className={`flex items-center space-x-3 p-3 rounded-2xl border transition-all duration-300 ${
-      active 
-        ? 'bg-white text-black border-white shadow-lg shadow-white/5' 
-        : 'bg-brand-gray text-white border-transparent'
-    }`}>
-      <div className={`h-6 w-6 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
-        active ? 'bg-black text-white' : 'bg-white/10 text-white/40'
-      }`}>
-        {number}
-      </div>
-      <span className="text-xs font-semibold tracking-tight leading-none text-left">{text}</span>
-    </div>
-  );
-}
 
 interface SocialButtonProps {
   icon: React.ReactNode;

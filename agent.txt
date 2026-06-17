@@ -1,0 +1,359 @@
+================================================================================
+          SENTINEL ERP: AUTONOMOUS ENTERPRISE AI WORKFORCE SPECIFICATION
+================================================================================
+
+This document specifies the architecture, roles, schema boundaries, responsibilities,
+and interaction patterns of the 21 specialized AI agents forming the synthetic 
+workforce of the Sentinel Autonomous Enterprise Operating System.
+
+================================================================================
+I. SYNTHETIC WORKFORCE ARCHITECTURE HIERARCHY
+================================================================================
+
+EXECUTIVE LAYER (Strategic Decision Swarm)
+├── 1. Executive Intelligence Agent (Universal Alignment & Escalations)
+├── 2. Strategy Agent (Growth, Capacity, & Market Analytics)
+└── 3. Enterprise Intelligence Agent (Unified Health Indexing)
+
+BUSINESS OPERATIONS LAYER (Execution & Transaction Swarm)
+├── 4. HR Agent (Lifecycle & Resource Balancing)
+├── 5. Finance Agent (Ledgers, Audits, & Gateway Reconciliation)
+├── 6. Procurement Agent (RFQ Swarm & Vendor Compliance)
+├── 7. Sales Agent (Negotiation & Revenue Forecasting)
+├── 8. CRM Agent (Customer Success & Ticket Diagnostics)
+├── 9. Project Agent (Milestone Tracking & Resource Planning)
+├── 10. Asset Agent (IoT Tracking & Predictive Maintenance)
+└── 11. Inventory Agent (Stock Orchestration & Warehousing)
+
+ENTERPRISE INTELLIGENCE LAYER (Insight & Model Swarm)
+├── 12. Risk Agent (Probability Models & Risk Indexing)
+├── 13. Memory Agent (Institutional Knowledge Graph)
+├── 14. Learning Agent (Self-Improving Recommendation Loop)
+└── 15. Forecasting Agent (Predictive Demand & Revenue Modeling)
+
+GOVERNANCE & POLICY LAYER (Safeguard Swarm)
+├── 16. Compliance Agent (Regulatory Checks & Policy Audits)
+├── 17. Security Agent (Access Anomaly & Threat Detection)
+└── 18. Explainability Agent (decision_justifications Schema Generator)
+
+AUTONOMOUS INFRASTRUCTURE LAYER (Self-Healing Swarm)
+├── 19. Health Agent (Microservice & API Diagnostics)
+├── 20. Recovery Agent (Self-Healing Job & Agent Recovery)
+└── 21. Orchestrator Agent (Swarm Manager & Multi-Agent Routing Engine)
+
+================================================================================
+II. SPECIALIZED AGENT BLUEPRINTS
+================================================================================
+
+--------------------------------------------------------------------------------
+1. EXECUTIVE INTELLIGENCE AGENT [Executive Layer]
+--------------------------------------------------------------------------------
+- Purpose: High-level alignment reasoning agent overseeing the entire enterprise.
+- Database Scope: `enterprise.*`, `shared.*`, `analytics.kpi_snapshots`
+- Key Responsibilities:
+  * Analyzes overall corporate health and flags strategic threats.
+  * Coordinates executive swarms to address critical multi-domain bottlenecks.
+  * Approves high-value transactions and exceptions escalated by domain agents.
+- Core Skills: Executive summaries, cross-domain trade-off analysis, escalation handling.
+- Input Schema: `{ event: "StrategicBottleneck", priority: "CRITICAL", indicators: [] }`
+- Output Schema: `{ decision: "EscalateToBoard" | "ApproveWithCondition", reason: string }`
+
+--------------------------------------------------------------------------------
+2. STRATEGY AGENT [Executive Layer]
+--------------------------------------------------------------------------------
+- Purpose: Long-range capacity planning and market-reactive intelligence.
+- Database Scope: `enterprise.strategic_plans`, `analytics.market_trends`
+- Key Responsibilities:
+  * Monitors external demand indicators and maps them to internal resources.
+  * Recommends operational adjustments (hiring quotas, inventory thresholds).
+  * Formulates 5-year growth simulations based on historical ERP runs.
+- Core Skills: Strategic forecasting, macro-market analysis, resource scaling math.
+- Input Schema: `{ market_indicator: string, change_percentage: number }`
+- Output Schema: `{ recommendation: string, impact_matrix: object }`
+
+--------------------------------------------------------------------------------
+3. ENTERPRISE INTELLIGENCE AGENT [Executive Layer]
+--------------------------------------------------------------------------------
+- Purpose: Core aggregation engine for real-time organizational health scoring.
+- Database Scope: `enterprise.kpi_snapshots`, `shared.universal_timeline`
+- Key Responsibilities:
+  * Computes the overall Enterprise Health Index (EHI) daily.
+  * Correlates performance metrics across sales, HR, finance, and logistics.
+  * Feeds the primary Control Tower dashboard views with unified metrics.
+- Core Skills: Multi-dimensional metrics aggregation, dashboard telemetry formatting.
+- Input Schema: `{ snapshot_date: string, metrics: Array<{ domain: string, score: number }> }`
+- Output Schema: `{ ehi_score: number, anomalies_detected: boolean, report: string }`
+
+--------------------------------------------------------------------------------
+4. HR AGENT [Business Operations Layer]
+--------------------------------------------------------------------------------
+- Purpose: Automated employee lifecycle and personnel resource balancing manager.
+- Database Scope: `hr.employees`, `hr.leaves`, `hr.payroll_runs`
+- Key Responsibilities:
+  * Automates candidate screening, resume grading, and onboarding workflows.
+  * Predicts employee burnout rates and attrition probabilities.
+  * Performs leave utilization balances and flags department availability risks.
+- Core Skills: Resume parsing, burnout prediction modeling, timesheet audits.
+- Input Schema: `{ candidate_profile: object }` | `{ leave_request: object }`
+- Output Schema: `{ score: number, fit_status: string }` | `{ approved: boolean }`
+
+--------------------------------------------------------------------------------
+5. FINANCE AGENT [Business Operations Layer]
+--------------------------------------------------------------------------------
+- Purpose: Virtual Chief Financial Officer and automated ledger auditor.
+- Database Scope: `finance.ledgers`, `finance.invoices`, `finance.budgets`
+- Key Responsibilities:
+  * Validates every invoice against matching purchase orders and contracts.
+  * Predicts cash flow trajectories and recommends cost-containment tasks.
+  * Integrates with external bank gateways (e.g., Axis Bank API) for reconciliations.
+- Core Skills: Double-entry ledger validation, anomalous transaction detection, banking API.
+- Input Schema: `{ transaction_detail: object, budget_limit: number }`
+- Output Schema: `{ status: "CLEARED" | "FLAGGED", variance: number }`
+
+--------------------------------------------------------------------------------
+6. PROCUREMENT AGENT [Business Operations Layer]
+--------------------------------------------------------------------------------
+- Purpose: Supply chain dispatcher and vendor compliance analyst.
+- Database Scope: `procurement.vendors`, `procurement.rfqs`, `procurement.purchase_orders`
+- Key Responsibilities:
+  * Dispatches RFQs automatically when stock levels fall below safe thresholds.
+  * Grades vendors dynamically using SLA compliance, pricing, and delay patterns.
+  * Generates optimized purchase orders ensuring maximum volume discounts.
+- Core Skills: Vendor assessment, supply lead-time modeling, multi-vendor bids scoring.
+- Input Schema: `{ inventory_shortage: object }`
+- Output Schema: `{ rfq_draft: object, selected_vendors: Array<string> }`
+
+--------------------------------------------------------------------------------
+7. SALES AGENT [Business Operations Layer]
+--------------------------------------------------------------------------------
+- Purpose: Automated pricing optimization and sales pipeline pipeline coordinator.
+- Database Scope: `sales.deals`, `sales.contracts`, `sales.pricing_rules`
+- Key Responsibilities:
+  * Qualifies inbound leads based on historical deal closure signals.
+  * Optimizes real-time contract pricing utilizing margin-risk curves.
+  * Drafting personalized proposal decks matching customer historical segments.
+- Core Skills: Dynamic pricing math, lead scoring, proposal drafting templates.
+- Input Schema: `{ lead_metadata: object, current_pipeline_status: string }`
+- Output Schema: `{ win_probability: number, recommended_pricing: number }`
+
+--------------------------------------------------------------------------------
+8. CRM AGENT [Business Operations Layer]
+--------------------------------------------------------------------------------
+- Purpose: Digital Customer Success executive and ticket triage specialist.
+- Database Scope: `crm.customers`, `crm.tickets`, `crm.feedback`
+- Key Responsibilities:
+  * Moniters customer sentiment across all interaction channels.
+  * Detects account churn risks early and queues customer success playbooks.
+  * Answers client tickets autonomously or redirects to the appropriate engineer.
+- Core Skills: Sentiment analysis, ticket classification, escalation heuristics.
+- Input Schema: `{ ticket_content: string, customer_history: object }`
+- Output Schema: `{ response_content: string, classification: string, priority: string }`
+
+--------------------------------------------------------------------------------
+9. PROJECT AGENT [Business Operations Layer]
+--------------------------------------------------------------------------------
+- Purpose: Milestone analyzer and delivery pipeline coordinator.
+- Database Scope: `projects.boards`, `projects.tasks`, `projects.resource_allocations`
+- Key Responsibilities:
+  * Evaluates delivery timelines and flags milestones facing potential delays.
+  * Matches resource skill matrices with project backlog tasks.
+  * Readjusts Gantt charts dynamically when capacity constraints change.
+- Core Skills: Backlog scheduling, critical path analysis, skill matching math.
+- Input Schema: `{ project_id: string, backlog_tasks: Array<object> }`
+- Output Schema: `{ bottleneck_critical_path: Array<string>, recommended_allocations: Array<object> }`
+
+--------------------------------------------------------------------------------
+10. ASSET AGENT [Business Operations Layer]
+--------------------------------------------------------------------------------
+- Purpose: IoT telemetry analyst and preventive asset maintenance worker.
+- Database Scope: `assets.registry`, `assets.maintenance_logs`, `assets.iot_telemetry`
+- Key Responsibilities:
+  * Processes physical asset IoT logs to detect micro-failure signs.
+  * Triggers preventive maintenance work orders before breakdown occurs.
+  * Minimizes company write-offs by identifying idle inventory or laptops.
+- Core Skills: Telemetry anomaly detection, hardware depreciation modeling.
+- Input Schema: `{ asset_id: string, telemetry_stream: Array<number> }`
+- Output Schema: `{ breakdown_risk: number, service_scheduled_date: string }`
+
+--------------------------------------------------------------------------------
+11. INVENTORY AGENT [Business Operations Layer]
+--------------------------------------------------------------------------------
+- Purpose: Warehouse layout optimizer and stock reorder supervisor.
+- Database Scope: `inventory.warehouses`, `inventory.stock_levels`, `inventory.transfers`
+- Key Responsibilities:
+  * Optimizes rack layouts based on stock velocity (fast vs slow moving).
+  * Automatically issues internal transfer requests to prevent localized stock-outs.
+  * Identifies aging or obsolete inventory and proposes write-down plans.
+- Core Skills: Spatial stock optimization, velocity calculations, logistics routing.
+- Input Schema: `{ warehouse_id: string, transfer_requests: Array<object> }`
+- Output Schema: `{ recommended_movements: Array<object>, layout_efficiency_score: number }`
+
+--------------------------------------------------------------------------------
+12. RISK AGENT [Enterprise Intelligence Layer]
+--------------------------------------------------------------------------------
+- Purpose: Cross-domain risk analyzer assessing enterprise exposure.
+- Database Scope: `risk.assessments`, `risk.mitigation_strategies`
+- Key Responsibilities:
+  * Reviews draft supply and sales contracts for legal exposure clauses.
+  * Analyzes currency and credit market exposures across foreign ledger entities.
+  * Assigns exposure indices across HR, Procurement, and Financial areas.
+- Core Skills: Risk modeling, legal clause classification, probability indexing.
+- Input Schema: `{ document_payload: string, risk_domain: string }`
+- Output Schema: `{ risk_index: number, risk_clauses: Array<string> }`
+
+--------------------------------------------------------------------------------
+13. MEMORY AGENT [Enterprise Intelligence Layer]
+--------------------------------------------------------------------------------
+- Purpose: The vector knowledge graph maintaining the company's long-term memory.
+- Database Scope: `shared.universal_timeline`, `enterprise.knowledge_graph`
+- Key Responsibilities:
+  * Generates vector embeddings of operational incidents, resolutions, and logs.
+  * Performs context-aware searches to fetch relevant historical outcomes.
+  * Maintains cross-entity relations to keep metadata fully linked.
+- Core Skills: Vector embedding ingestion, knowledge graph mapping, context linking.
+- Input Schema: `{ entity_text: string, tags: Array<string> }`
+- Output Schema: `{ vectorized_success: boolean, linked_references: Array<string> }`
+
+--------------------------------------------------------------------------------
+14. LEARNING AGENT [Enterprise Intelligence Layer]
+--------------------------------------------------------------------------------
+- Purpose: Self-improvement engine updating recommendation weights.
+- Database Scope: `learning.feedback_loops`, `learning.weights`
+- Key Responsibilities:
+  * Analyzes outcomes where human operators overridden agent decisions.
+  * Backpropagates context parameters to update future scoring heuristics.
+  * Recommends training updates for domain classification tasks.
+- Core Skills: Heuristics tuning, reinforcement learning feedback processing.
+- Input Schema: `{ agent_decision: object, operator_correction: object }`
+- Output Schema: `{ feedback_applied: boolean, weight_delta: object }`
+
+--------------------------------------------------------------------------------
+15. FORECASTING AGENT [Enterprise Intelligence Layer]
+--------------------------------------------------------------------------------
+- Purpose: Central forecasting server mapping demand, revenue, and attrition curves.
+- Database Scope: `analytics.forecasts`, `shared.universal_timeline`
+- Key Responsibilities:
+  * Generates rolling 12-month projections of revenue, spend, and cash.
+  * Predicts inventory volume variations based on seasonal history.
+  * Feeds other agents with predictive datasets to prevent scheduling bottlenecks.
+- Core Skills: Time-series forecasting, regression modelling, seasonal adjustments.
+- Input Schema: `{ history_data: Array<{ date: string, value: number }> }`
+- Output Schema: `{ forecasted_values: Array<{ date: string, value: number }> }`
+
+--------------------------------------------------------------------------------
+16. COMPLIANCE AGENT [Governance Layer]
+--------------------------------------------------------------------------------
+- Purpose: Continuous auditor ensuring strict governance policy enforcement.
+- Database Scope: `governance.policies`, `audit.actions`, `audit.events`
+- Key Responsibilities:
+  * Scans write-actions across all modules to verify policy compliance.
+  * Prepares real-time audit files containing cryptographically signed logs.
+  * Prevents transaction processing when strict data governance criteria fail.
+- Core Skills: Policy validation engines, compliance standards checklist audits.
+- Input Schema: `{ transaction_id: string, proposed_action: object }`
+- Output Schema: `{ compliant: boolean, rule_violation: string | null }`
+
+--------------------------------------------------------------------------------
+17. SECURITY AGENT [Governance Layer]
+--------------------------------------------------------------------------------
+- Purpose: High-speed threat detection agent checking all operator sessions.
+- Database Scope: `security.sessions`, `security.access_logs`, `security.alerts`
+- Key Responsibilities:
+  * Evaluates session activity to detect suspicious behavioral fingerprints.
+  * Automatically forces high-risk actions to pass Multi-Factor Authentication.
+  * Flags out-of-boundary API tokens or data exfiltration attempts.
+- Core Skills: Threat detection, IP heuristics, step-up authentication triggers.
+- Input Schema: `{ request_metadata: object, user_session: object }`
+- Output Schema: `{ action_status: "ALLOW" | "BLOCK" | "CHALLENGE", threat_score: number }`
+
+--------------------------------------------------------------------------------
+18. EXPLAINABILITY AGENT [Governance Layer]
+--------------------------------------------------------------------------------
+- Purpose: AI Transparency Engine justifying every autonomous decision.
+- Database Scope: `audit.decision_justifications`
+- Key Responsibilities:
+  * Records explanation schemas detailing the data inputs used in decisions.
+  * Formulates user-friendly reasoning descriptions for business managers.
+  * Provides alternative options that were evaluated and rejected.
+- Core Skills: Explainable AI parsing, logic chain breakdown.
+- Input Schema: `{ decision_record: object, rejected_alternatives: Array<object> }`
+- Output Schema: `{ justification_report: object, natural_language_summary: string }`
+
+--------------------------------------------------------------------------------
+19. HEALTH AGENT [Autonomous Infrastructure Layer]
+--------------------------------------------------------------------------------
+- Purpose: Real-time telemetry inspector watching system stability.
+- Database Scope: `observability.system_metrics`, `observability.logs`
+- Key Responsibilities:
+  * Analyzes API latencies, message broker queues, and PostgreSQL query delays.
+  * Flags microservice failures and alerts the self-healing swarm.
+  * Feeds the administrative infrastructure dashboard with real-time health states.
+- Core Skills: Infrastructure telemetry, pattern diagnostics.
+- Input Schema: `{ metric_name: string, value: number, limit: number }`
+- Output Schema: `{ health_status: "HEALTHY" | "DEGRADED" | "CRITICAL" }`
+
+--------------------------------------------------------------------------------
+20. RECOVERY AGENT [Autonomous Infrastructure Layer]
+--------------------------------------------------------------------------------
+- Purpose: Self-healing coordinator resolving infrastructure failures.
+- Database Scope: `observability.remediation_actions`
+- Key Responsibilities:
+  * Restarts stalled agents or workflow workers autonomously.
+  * Re-routes queue messages when consumer congestion persists.
+  * Executes safe rollbacks on failed transactional runs.
+- Core Skills: Automated runbook execution, failure resolution tactics.
+- Input Schema: `{ issue_detected: object }`
+- Output Schema: `{ action_executed: string, resolved: boolean }`
+
+--------------------------------------------------------------------------------
+21. ORCHESTRATOR AGENT [Autonomous Infrastructure Layer]
+--------------------------------------------------------------------------------
+- Purpose: The central multi-agent router coordinating dynamic task swarms.
+- Database Scope: `workflows.definitions`, `workflows.active_swarms`
+- Key Responsibilities:
+  * Parses incoming business events and determines the optimal execution swarm.
+  * Provisions temporary channels for agent-to-agent communication.
+  * Monitors execution timeouts and handles fallback routing structures.
+- Core Skills: Swarm orchestration, dynamic routing, state machine control.
+- Input Schema: `{ business_event: string, payload: object }`
+- Output Schema: `{ routing_path: Array<string>, swarm_id: string }`
+
+================================================================================
+III. MULTI-AGENT SWARM INTERACTION MODEL
+================================================================================
+
+When a transaction or business challenge requires cross-domain intelligence,
+the Orchestrator Agent provisions a Swarm Room. Agents coordinate using a
+Request-Response-Audit cycle as shown below:
+
+[Business Event Trigger]
+        │
+        ▼
+┌──────────────────┐
+│   Orchestrator   │ ──► Spawns temporary Swarm Room
+└──────────────────┘
+        │
+        ├──────────────────────────┐
+        ▼                          ▼
+┌──────────────────┐      ┌──────────────────┐
+│ Procurement Agt  │      │   Finance Agt    │
+│ (Vendor Quality) │      │ (Budget Check)   │
+└──────────────────┘      └──────────────────┘
+        │                          │
+        └─────────────┬────────────┘
+                      ▼
+            ┌──────────────────┐
+            │  Compliance Agt  │ (Enforces Regulatory Rules)
+            └──────────────────┘
+                      │
+                      ▼
+            ┌──────────────────┐
+            │   Explainability │ (Generates justification record)
+            └──────────────────┘
+                      │
+                      ▼
+            [Autonomous Action] ──► Audit Log entry generated
+
+This structured coordination guarantees that all decisions remain audit-ready, 
+compliant, secure, and fully explainable to human operators.
+================================================================================

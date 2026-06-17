@@ -89,3 +89,75 @@ export const onAuthChanged = (callback: (user: any) => void) => {
     callback(user);
   });
 };
+
+import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
+
+// Save Onboarding configuration
+export const saveOnboardingData = async (
+  userId: string,
+  industry: string,
+  selectedModules: string[],
+  recommendedModules: string[]
+): Promise<boolean> => {
+  try {
+    const db = getFirestore(app);
+    await setDoc(doc(db, "onboarding", userId), {
+      userId,
+      industry,
+      selectedModules,
+      recommendedModules,
+      onboardingCompleted: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+    localStorage.setItem(`sentinel_onboarding_${userId}`, JSON.stringify({
+      userId,
+      industry,
+      selectedModules,
+      recommendedModules,
+      onboardingCompleted: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }));
+    return true;
+  } catch (error) {
+    console.warn("Firebase Firestore onboarding save error, falling back to localStorage:", error);
+    const localData = {
+      userId,
+      industry,
+      selectedModules,
+      recommendedModules,
+      onboardingCompleted: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    localStorage.setItem(`sentinel_onboarding_${userId}`, JSON.stringify(localData));
+    return true;
+  }
+};
+
+// Check if onboarding completed
+export const isOnboardingCompleted = async (userId: string): Promise<boolean> => {
+  try {
+    const db = getFirestore(app);
+    const docSnap = await getDoc(doc(db, "onboarding", userId));
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      return data?.onboardingCompleted === true;
+    }
+  } catch (error) {
+    console.warn("Firebase Firestore onboarding fetch error, checking localStorage:", error);
+  }
+
+  const localData = localStorage.getItem(`sentinel_onboarding_${userId}`);
+  if (localData) {
+    try {
+      const parsed = JSON.parse(localData);
+      return parsed.onboardingCompleted === true;
+    } catch {
+      return false;
+    }
+  }
+  return false;
+};
+

@@ -1,0 +1,205 @@
+================================================================================
+SENTINEL ERP – APPLICATION ROUTING, PAGES, NAVIGATION & AUTH AUDIT REPORT
+================================================================================
+Generated: 2026-06-14T11:25:56+05:30
+Scope: Entire sentinel-erp-web codebase
+File Location: ROUTE_AUDIT_REPORT.txt
+
+This document provides a comprehensive audit of all routes, page components, layouts,
+role configurations, navigation structures, and redirection logic within Sentinel ERP.
+
+--------------------------------------------------------------------------------
+1. ROUTE INVENTORY
+--------------------------------------------------------------------------------
+Below is the master routing inventory of the application, representing both root-level
+and dashboard nested routes.
+
+ROOT-LEVEL ROUTES (App.tsx):
+--------------------------------------------------------------------------------
+ROUTE PATH             | PAGE COMPONENT         | LAYOUT USED        | ACCESS LEVEL
+--------------------------------------------------------------------------------
+/                      | LandingPage            | Landing Custom     | Public
+/login                 | LoginPage              | LoginPage Split    | Public / Redirect-to-user
+/signup                | SignupPage             | SignupPage Split   | Public / Redirect-to-user
+/onboarding            | OnboardingPage         | Onboarding Custom  | Authenticated (Standard)
+/dashboard/*           | DashboardLayout        | Dashboard Unified  | Authenticated (Standard/Agent)
+/admin-control-tower   | AdminControlTower      | Three-Column Admin | Authenticated (Admin Only)
+--------------------------------------------------------------------------------
+
+DASHBOARD NESTED ROUTES (/dashboard/*, DashboardLayout.tsx):
+--------------------------------------------------------------------------------
+ROUTE PATH                      | PAGE COMPONENT                  | ACCESS PERMISSIONS
+--------------------------------------------------------------------------------
+/dashboard                      | HomeView / CommandCenter        | * (All Authenticated)
+/dashboard/profile              | ProfileView                     | * (All Authenticated)
+/dashboard/hr                   | HRView                          | hr:read, hr:write
+/dashboard/finance              | FinanceView                     | finance:read, finance:write
+/dashboard/crm                  | CRMView                         | sales:read, sales:write
+/dashboard/sales-mgmt           | CRMView (Merged)                | sales:read, sales:write
+/dashboard/procurement          | ProcurementView                 | procurement:read, procurement:write
+/dashboard/purchase             | ProcurementView (Merged)        | procurement:read, procurement:write
+/dashboard/inventory            | InventoryView                   | inventory:read, inventory:write
+/dashboard/projects             | ProjectView                     | projects:read, projects:write
+/dashboard/security             | SecurityView                    | security:admin
+/dashboard/ai-center            | AICenterView                    | * (All Authenticated)
+/dashboard/analytics            | AnalyticsView                   | analytics:read
+/dashboard/settings             | SettingsView                    | * (All Authenticated)
+/dashboard/invoices             | InvoiceCenterView               | finance:read
+/dashboard/approvals            | ApprovalHubView                 | * (All Authenticated)
+/dashboard/manufacturing        | ManufacturingView               | inventory:write
+/dashboard/support              | CustomerSupportView             | * (All Authenticated)
+/dashboard/assets               | AssetManagementView             | finance:read
+/dashboard/documents            | DocumentCenterView              | * (All Authenticated)
+/dashboard/knowledge            | KnowledgeHubView                | * (All Authenticated)
+/dashboard/automation           | AutomationCenterView            | security:admin
+/dashboard/audit-center         | AuditCenterView                 | security:admin
+/dashboard/notifications        | NotificationCenterView          | * (All Authenticated)
+/dashboard/mdm                  | MDMView                         | finance:write
+/dashboard/integrations         | IntegrationHubView              | security:admin
+/dashboard/report-studio        | ReportStudioView                | analytics:read
+/dashboard/workflow-studio      | WorkflowStudioView              | security:admin
+/dashboard/ecc                  | EnterpriseCommandCenter         | * (All Authenticated / Agent)
+/dashboard/ops-hub              | OperationsHub                   | * (All Authenticated / Agent)
+/dashboard/workflow-orch        | WorkflowOrchestration           | * (All Authenticated / Agent)
+/dashboard/knowledge-graph      | EnterpriseKnowledgeGraph        | * (All Authenticated / Agent)
+/dashboard/adaptive-intel       | AdaptiveIntelligenceEngine      | * (All Authenticated / Agent)
+/dashboard/strategic-intel      | ExecutiveDecisionIntelligence   | * (All Authenticated / Agent)
+/dashboard/governance-compliance| AIGovernanceCompliance          | * (All Authenticated / Agent)
+/dashboard/digital-twin         | EnterpriseDigitalTwin           | * (All Authenticated / Agent)
+/dashboard/observability-resil..| ObservabilityResilienceCenter   | * (All Authenticated / Agent)
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+2. PAGE INVENTORY
+--------------------------------------------------------------------------------
+1. LandingPage: Main marketing and demo presentation screen. Contains simulated chat copilot.
+2. LoginPage: Form entry for credential mapping. Contains Google/Microsoft SSO quick launchers.
+3. SignupPage: Dynamic registration portal with password compliance logic.
+4. OnboardingPage: Configuration screen to toggle industry and customize erp modules list.
+5. AdminControlTower: Super-admin control cockpit with tab panels (users list, audit logs, agents status).
+6. Dashboard views: 37 dashboard screens mapping to all registered erp7 modular features.
+
+--------------------------------------------------------------------------------
+3. LAYOUT INVENTORY
+--------------------------------------------------------------------------------
+1. Landing Custom Layout: Immersive dark styling with glassmorphism cards and modal flows.
+2. Form-Split Layout: Two-column configuration. Left side contains marketing bullets, statistics, 
+   and rotating quotes. Right side contains forms (login, signup) and SSO buttons.
+3. Onboarding Custom Layout: Sticky left panel for category progress and right scrollable catalog.
+4. Unified Dashboard Layout: Left sidebar (responsive collapse), top header (ribbon, copilot, search),
+   and scrollable content view container.
+5. Three-Column Admin Layout: Left tab sidebar, center grid monitor, and right side telemetry panels.
+
+--------------------------------------------------------------------------------
+4. NAVIGATION MAP
+--------------------------------------------------------------------------------
+SIDEBAR NAVIGATION SYSTEMS:
+
+A. STANDARD USER SIDEBAR (DashboardLayout.tsx):
+   Categorized according to user modules:
+   - Platform Core: Command Center (/dashboard), Operator Profile (/dashboard/profile),
+     Notification Center (/dashboard/notifications), Workspace Settings (/dashboard/settings)
+   - Financial Ops: Finance Ledgers (/dashboard/finance), Invoice Center (/dashboard/invoices),
+     Asset Management (/dashboard/assets), Master Data MDM (/dashboard/mdm)
+   - Logistics & Ops: HRMS Operations (/dashboard/hr), CRM Sales (/dashboard/crm),
+     Sales Management (/dashboard/sales-mgmt), Procurement (/dashboard/procurement),
+     Purchase Management (/dashboard/purchase), Inventory Assets (/dashboard/inventory),
+     Delivery Center (/dashboard/projects), Approval Hub (/dashboard/approvals),
+     Manufacturing (/dashboard/manufacturing), Customer Support (/dashboard/support)
+   - Knowledge Hub: Document Center (/dashboard/documents), Knowledge Hub (/dashboard/knowledge)
+   - AI & Automation: Agentic AI Center (/dashboard/ai-center), BI Analytics (/dashboard/analytics),
+     Automation Center (/dashboard/automation), Integration Hub (/dashboard/integrations),
+     Report Studio (/dashboard/report-studio), Workflow Studio (/dashboard/workflow-studio)
+   - Governance & Security: Security Center (/dashboard/security), Audit Center (/dashboard/audit-center)
+
+B. AGENT SIDEBAR (DashboardLayout.tsx, Exclusive for agent@gmail.com):
+   - Category: AI Command Center (ai-command-center)
+     - Enterprise Command Center (/dashboard/ecc)
+     - Operations Hub (/dashboard/ops-hub)
+     - Workflow Orchestration (/dashboard/workflow-orch)
+     - Enterprise Knowledge Graph (/dashboard/knowledge-graph)
+     - Adaptive Intelligence Engine (/dashboard/adaptive-intel)
+     - Executive Decision Intelligence (/dashboard/strategic-intel)
+     - AI Governance & Compliance (/dashboard/governance-compliance)
+     - Enterprise Digital Twin (/dashboard/digital-twin)
+     - Observability & Resilience Center (/dashboard/observability-resilience)
+
+C. ADMIN COMMAND NAVIGATION (AdminControlTower.tsx, Exclusive tab navigation):
+   - General: Dashboard Overview (overview), Workspace Settings (settings)
+   - Organization: User Management (users), Roles & Permissions (rbac), Departments (departments)
+   - AI Workforce: Agent Registry (agents), Agent Observability (observability), Agent Governance (governance)
+   - Operations: System Digital Twin (twin), System Monitoring (monitoring), Billing & Usage (billing)
+   - Automation: Workflow Studio (workflows)
+   - Platform: Integration Hub (integrations)
+   - Governance: Security Center (security), Audit Center (audit)
+
+--------------------------------------------------------------------------------
+5. AUTHENTICATION FLOW
+--------------------------------------------------------------------------------
+1. INITIATION: User visits /login or /signup.
+2. IDENTITY MAPPING:
+   - Google SSO button triggers mock google user or logs in with Firebase pop-up.
+   - Microsoft SSO button mock logs in user as admin@gmail.com.
+   - Email/Password form triggers login or registration. Bypasses firebase checks for:
+     * agent@gmail.com -> mocks agent user id.
+     * admin@gmail.com -> mocks microsoft admin user.
+3. SESSION MANAGEMENT:
+   - App.tsx tracks auth updates and caches details in localStorage under `sentinel_mock_user`.
+   - Logging out clears the local key and invokes signOut from Firebase auth.
+
+--------------------------------------------------------------------------------
+6. ROLE SYSTEM
+--------------------------------------------------------------------------------
+ROLE                      | SOURCE                | PERMISSIONS MAPPED / MODULE ACCESS
+--------------------------------------------------------------------------------
+admin@gmail.com (Super)   | App.tsx Login/SSO     | Full access. Redirected to /admin-control-tower.
+agent@gmail.com (Agent)   | App.tsx Login         | Dedicated AI Command Center sidebar views.
+Standard User             | App.tsx Signup/SSO    | Dependent on completed onboarding modules catalog.
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+7. ROUTE GUARDS & 8. REDIRECT LOGIC
+--------------------------------------------------------------------------------
+All logic is executed inside the AnimatedRoutes useEffect inside App.tsx:
+
+FILE: App.tsx
+FUNCTION: AnimatedRoutes -> useEffect()
+CURRENT BEHAVIOR:
+- IF user is logged in:
+  - If location is /login or /signup, triggers setUser(null) to sign out user. Prevents back navigation loop trap.
+  - If email === admin@gmail.com and location !== /admin-control-tower, redirects to /admin-control-tower.
+  - If email === agent@gmail.com and location is not dashboard, redirects to /dashboard.
+  - For standard users:
+    * If onboarding is incomplete, redirects any requests for /dashboard or /admin-control-tower to /onboarding.
+    * If onboarding is complete, redirects requests for /admin-control-tower to /dashboard.
+- IF user is NOT logged in:
+  - Redirects requests for /dashboard, /onboarding, or /admin-control-tower to /login.
+
+--------------------------------------------------------------------------------
+9. LANDING PAGES
+--------------------------------------------------------------------------------
+- ACTUAL ADMIN LANDING PAGE: /admin-control-tower
+  (Bypasses onboarding. The Admin Control Tower loads immediately as the dashboard entrypoint).
+- ACTUAL AGENT LANDING PAGE: /dashboard
+  (Bypasses onboarding. Automatically renders EnterpriseCommandCenter as the homepage).
+- GOOGLE LOGIN DESTINATION: /onboarding
+  (For standard authenticated users. Directs to modular setup configuration flow).
+
+--------------------------------------------------------------------------------
+10. ROUTING ISSUES & DETECTED PROBLEMS
+--------------------------------------------------------------------------------
+1. Merged Paths: /dashboard/sales-mgmt renders CRMView directly, and /dashboard/purchase
+   renders ProcurementView directly. These are duplicate navigation targets for unified pages.
+2. Route Isolation: If a standard user manually types /dashboard/ecc or other agent paths,
+   they can access those components, as permissions: ['*'] is set in registry.ts. There is no
+   explicit module-level role block in registry components, rely solely on sidebar filtering.
+3. Onboarding Access: Even after onboarding is completed, standard users can navigate back 
+   to /onboarding page manually, which is permitted.
+
+--------------------------------------------------------------------------------
+11. RECOMMENDED ROLE MAPPING
+--------------------------------------------------------------------------------
+- Standard users should be locked to permissions matching their onboarding modules list.
+- Explicit components-level checks should prevent standard users from rendering agent-only
+  pages under /dashboard/ecc etc. if accessed by manual URL input.
+================================================================================

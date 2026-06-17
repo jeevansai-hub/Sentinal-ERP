@@ -1787,3 +1787,195 @@ footer {
   color: rgba(94,106,210,0.08);
 }
 
+/* Global native select option styles for dark theme compatibility */
+select option {
+  background-color: #121212 !important;
+  color: #ffffff !important;
+}
+
+/* ── PREMIUM MICRO-INTERACTIONS AND GLOBAL STYLING ── */
+
+/* Shimmer Animation for Skeletons */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer-element {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.02) 25%, rgba(255, 255, 255, 0.08) 37%, rgba(255, 255, 255, 0.02) 63%) !important;
+  background-size: 200% 100% !important;
+  animation: shimmer 1.6s infinite linear !important;
+}
+
+/* Focus rings accessibility and visual elegance */
+*:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.4) !important;
+  outline-offset: 2px !important;
+}
+
+/* Inputs & Form Controls custom focus glow */
+input[type="text"], input[type="email"], input[type="password"], select, textarea {
+  transition: all var(--t-fast) var(--ease) !important;
+}
+input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focus, select:focus, textarea:focus {
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 1px 2px rgba(0,0,0,0.4) !important;
+  background-color: rgba(255, 255, 255, 0.04) !important;
+}
+
+/* Button hover and click translations */
+button:not(:disabled), .btn:not(:disabled) {
+  transition: all var(--t-fast) var(--ease) !important;
+}
+button:not(:disabled):hover, .btn:not(:disabled):hover {
+  transform: translateY(-0.5px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+button:not(:disabled):active, .btn:not(:disabled):active {
+  transform: translateY(0.5px) scale(0.98);
+  opacity: 0.95;
+}
+
+/* Sidebar items animations */
+aside nav a {
+  transition: all var(--t-fast) var(--ease) !important;
+  position: relative;
+}
+aside nav a::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 15%;
+  height: 70%;
+  width: 2.5px;
+  background: #ffffff;
+  border-radius: 0 4px 4px 0;
+  opacity: 0;
+  transform: scaleY(0.4);
+  transition: all var(--t-fast) var(--ease);
+}
+aside nav a:hover::before {
+  opacity: 0.5;
+  transform: scaleY(0.7);
+}
+aside nav a[class*="bg-white/10"]::before {
+  opacity: 1;
+  transform: scaleY(1);
+}
+
+/* Row hover transitions for Data Grid tables */
+.enterprise-grid-row {
+  transition: background-color var(--t-fast) var(--ease) !important;
+}
+.enterprise-grid-row:hover {
+  background-color: rgba(255, 255, 255, 0.02) !important;
+}
+
+/* Card glow & border animation utility classes */
+.premium-card {
+  position: relative;
+  overflow: hidden;
+  transition: border-color var(--t-norm) var(--ease), box-shadow var(--t-norm) var(--ease), background var(--t-norm) var(--ease) !important;
+}
+.premium-card:hover {
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  background: rgba(10, 10, 10, 0.95) !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.8), 0 0 20px rgba(255, 255, 255, 0.02) !important;
+}
+
+/* ── PAGE ACCENTS & DISTINCT VISUAL IDENTITIES ── */
+.view-accent-home {
+  background: radial-gradient(circle at 10% 10%, rgba(255, 255, 255, 0.02) 0%, transparent 40%) !important;
+  border-radius: var(--r-xl);
+}
+
+.view-accent-admin {
+  background: radial-gradient(circle at 50% 0%, rgba(6, 182, 212, 0.03) 0%, transparent 60%),
+              radial-gradient(circle at 90% 80%, rgba(59, 130, 246, 0.02) 0%, transparent 50%) !important;
+  border-radius: var(--r-xl);
+}
+
+.view-accent-ai {
+  background: radial-gradient(circle at 0% 100%, rgba(139, 92, 246, 0.04) 0%, transparent 50%),
+              radial-gradient(circle at 100% 0%, rgba(6, 182, 212, 0.04) 0%, transparent 50%) !important;
+  border-radius: var(--r-xl);
+}
+
+.view-accent-hr {
+  background: radial-gradient(circle at 80% 20%, rgba(16, 185, 129, 0.03) 0%, transparent 50%) !important;
+  border-radius: var(--r-xl);
+}
+
+.view-accent-analytics {
+  background: radial-gradient(circle at 20% 80%, rgba(59, 130, 246, 0.03) 0%, transparent 50%) !important;
+  border-radius: var(--r-xl);
+}
+
+.view-accent-automation {
+  background: radial-gradient(circle at 10% 30%, rgba(245, 158, 11, 0.03) 0%, transparent 50%) !important;
+  border-radius: var(--r-xl);
+}
+
+.view-accent-security {
+  background: radial-gradient(circle at 90% 10%, rgba(244, 63, 94, 0.03) 0%, transparent 50%),
+              radial-gradient(circle at 10% 90%, rgba(239, 68, 68, 0.02) 0%, transparent 40%) !important;
+  border-radius: var(--r-xl);
+}
+
+.view-accent-audit {
+  background: radial-gradient(circle at 50% 50%, rgba(148, 163, 184, 0.02) 0%, transparent 60%) !important;
+  border-radius: var(--r-xl);
+}
+
+.view-accent-reports {
+  background: radial-gradient(circle at 0% 0%, rgba(255, 255, 255, 0.01) 0%, transparent 30%) !important;
+  border-radius: var(--r-xl);
+}
+
+.view-accent-settings {
+  background: none !important;
+  border-radius: var(--r-xl);
+}
+
+/* Elegant sleek scrollbar rules for panels and sidebars on Windows */
+.sidebar-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+}
+
+/* Also apply custom scrolling for main panels to prevent thick Windows scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+}
