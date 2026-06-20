@@ -3,9 +3,6 @@
 -- Evolutionary Modular Monolith Architecture (ADR-001 & ADR-002)
 -- ==========================================
 
--- Enable pgcrypto extension for gen_random_uuid() support
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
 -- 1. Create Isolated Domain Schemas
 CREATE SCHEMA IF NOT EXISTS org;
 CREATE SCHEMA IF NOT EXISTS auth;
@@ -25,7 +22,6 @@ CREATE SCHEMA IF NOT EXISTS agents;
 CREATE SCHEMA IF NOT EXISTS shared;
 CREATE SCHEMA IF NOT EXISTS observability;
 CREATE SCHEMA IF NOT EXISTS governance;
-CREATE SCHEMA IF NOT EXISTS knowledge;
 
 -- ==========================================
 -- 2. Audit Domain (Traceability)
