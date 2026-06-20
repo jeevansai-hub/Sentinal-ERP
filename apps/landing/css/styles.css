@@ -498,6 +498,7 @@ ul { list-style: none; }
   padding: var(--s8); background: var(--bg-surface);
   border: 1px solid var(--border); border-radius: var(--r-xl);
   position: relative; overflow: hidden; transition: all var(--t-norm);
+  display: flex; flex-direction: column;
 }
 .pillar-card::before {
   content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
@@ -518,7 +519,7 @@ ul { list-style: none; }
 
 .pillar-title { font-size: 17px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.02em; margin-bottom: var(--s3); }
 .pillar-desc { font-size: 13.5px; color: var(--text-muted); line-height: 1.65; margin-bottom: var(--s5); }
-.pillar-modules { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.pillar-modules { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: auto; }
 .pillar-module {
   padding: 3px 9px; border-radius: var(--r-full);
   background: rgba(255,255,255,0.05); border: 1px solid var(--border);
@@ -869,16 +870,65 @@ footer {
 }
 @media (max-width: 768px) {
   .nav-links { display: none; }
+  .nav-actions { display: none; }
   .hamburger { display: flex; }
   .pillars-grid { grid-template-columns: 1fr; }
   .stories-grid { grid-template-columns: 1fr; }
   .footer-grid { grid-template-columns: 1fr 1fr; }
   .erp-sidebar { display: none; }
   .kpi-row { grid-template-columns: 1fr 1fr; }
-  .board-columns { grid-template-columns: 1fr 1fr; }
+  .board-columns { grid-template-columns: 1fr; }
   .dash-kpis { grid-template-columns: 1fr 1fr 1fr; }
   .collab-section .feature-layout { grid-template-columns: 1fr; }
-  .hero-actions { flex-direction: column; align-items: center; }
+  
+  .hero-actions {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    max-width: 320px;
+    margin: 0 auto;
+    gap: var(--s3);
+  }
+  .hero-actions .btn-primary,
+  .hero-actions .btn-outline {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .dash-header {
+    flex-direction: column;
+    gap: var(--s3);
+    align-items: center;
+    text-align: center;
+  }
+  .dash-tabs {
+    margin-left: 0;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .ai-suggestions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .ai-suggestion {
+    text-align: center;
+    width: 100%;
+  }
+
+  .cta-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--s3);
+    width: 100%;
+    max-width: 320px;
+    margin: 0 auto;
+  }
+  .cta-actions .btn-primary,
+  .cta-actions .btn-outline {
+    width: 100%;
+    justify-content: center;
+  }
 }
 @media (max-width: 480px) {
   .footer-grid { grid-template-columns: 1fr; }
