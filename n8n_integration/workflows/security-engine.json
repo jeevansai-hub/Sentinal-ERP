@@ -1,0 +1,48 @@
+{
+  "name": "Sentinel ERP Security Scrubber Engine",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "node-trigger-input",
+      "name": "Sub-Workflow Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "let rawText = item.json.text || '';\nlet isViolated = false;\nlet violations = [];\n\n// Regex matching\nconst ccPattern = /\\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|3(?:0[0-5]|[68][0-9])[0-9]{11}|6011[0-9]{12}|(?:2131|1800|35\\d{3})\\d{11})\\b/;\nconst ssnPattern = /\\b\\d{3}-\\d{2}-\\d{4}\\b/;\nconst secretPattern = /(?i)(key|secret|password|token|auth|credential|jwt)\\b\\s*[:=]\\s*[\"']?[a-zA-Z0-9_\\-\\.\\/]{20,}[\"']?/;\n\nif (ccPattern.test(rawText)) {\n  rawText = rawText.replace(ccPattern, '[MASKED_PII_CC]');\n  violations.push('Credit Card leak detected and scrubbed');\n}\n\nif (ssnPattern.test(rawText)) {\n  rawText = rawText.replace(ssnPattern, '[MASKED_PII_SSN]');\n  violations.push('SSN leak detected and scrubbed');\n}\n\nif (secretPattern.test(rawText)) {\n  isViolated = true;\n  violations.push('Raw API key or Secret credential found - BLOCKING REQUEST');\n}\n\nreturn {\n  action: isViolated ? 'Blocked' : 'Proceed',\n  scrubbed_payload: rawText,\n  violations_detected: violations\n};"
+      },
+      "id": "node-scrubbing-logic",
+      "name": "Run Filter Logic",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Sub-Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Run Filter Logic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "id": "flow-security-engine",
+  "meta": {
+    "instanceId": "instance-security-engine-201"
+  }
+}

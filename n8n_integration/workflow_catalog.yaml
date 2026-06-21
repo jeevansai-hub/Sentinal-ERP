@@ -1,0 +1,192 @@
+# Sentinel ERP n8n Workflow Catalog
+# Defines all core execution flows, triggers, human-in-the-loop steps, and error/fallback strategies.
+
+workflows:
+  - workflow_id: "flow-crm-lead-qualification"
+    name: "Automated CRM Lead Qualification"
+    description: "Ingests incoming contact form leads, sanitizes inputs, qualifiers via Lead Qualifier Agent, and updates CRM pipeline."
+    trigger:
+      type: "Webhook"
+      endpoint: "/webhook/crm/lead-created"
+      method: "POST"
+      event: "Event: Lead Created"
+    agents_involved:
+      - "agent-1" (Lead Qualifier Agent)
+      - "agent-4" (Coordinator Agent)
+    steps:
+      - step_number: 1
+        name: "PII scrub and ingestion"
+        type: "script"
+        action: "Sanitize payload; remove SSN, personal numbers. Normalize emails."
+      - step_number: 2
+        name: "Agent routing"
+        type: "agent_execution"
+        action: "Call agent-1 to compute Lead Priority Score (0-100) and identify intent."
+      - step_number: 3
+        name: "Confidence verification"
+        type: "logical_switch"
+        condition: "If agent qualification confidence >= 0.85 proceed, else escalate."
+      - step_number: 4
+        name: "ERP CRM Sync"
+        type: "api_call"
+        endpoint: "/crm/deals"
+        method: "POST"
+        payload:
+          title: "Lead from {{ $json.company }}"
+          status: "Qualified"
+          priority: "{{ $json.priority }}"
+    human_in_the_loop:
+      required: false
+      condition: "Confidence < 0.85 requires manual sales operations triage."
+      override_action: "Insert task in Sales Admin queue."
+    fallback_rules:
+      on_api_error: "Retry API 3 times, intervals of 30s. If still failing, route to agent-4 (Coordinator) to alert Ops."
+      on_agent_timeout: "Default lead category to 'Warm' and assign to default sales pool."
+
+  - workflow_id: "flow-crm-contract-generation"
+    name: "Sales Contract Generation & Negotiator"
+    description: "Orchestrates sales contract creation based on deal milestones, applying discounting policies."
+    trigger:
+      type: "Webhook"
+      endpoint: "/webhook/crm/deal-negotiating"
+      method: "POST"
+      event: "Event: Deal Negotiating"
+    agents_involved:
+      - "agent-2" (Sales Closer Agent)
+    steps:
+      - step_number: 1
+        name: "Extract Deal Details"
+        type: "api_call"
+        endpoint: "/crm/deals/{{ $json.dealId }}"
+        method: "GET"
+      - step_number: 2
+        name: "Discount Policy Check"
+        type: "logical_switch"
+        condition: "If discount <= 15% proceed to auto-generate; if > 15% and <= 25% escalate to Finance Manager; if > 25% escalate to VP Sales."
+      - step_number: 3
+        name: "Generate Contract Draft"
+        type: "agent_execution"
+        action: "Call agent-2 with discount rules and client specs to compile markdown contract clauses."
+      - step_number: 4
+        name: "PDF Compiler"
+        type: "tool_execution"
+        tool: "DocGen Contract Tool"
+        inputs:
+          template_id: "sales_contract_template_v2"
+          dynamic_fields: "{{ $json.contract_clauses }}"
+      - step_number: 5
+        name: "Save Document Reference"
+        type: "api_call"
+        endpoint: "/finance/invoices/draft"
+        method: "POST"
+    human_in_the_loop:
+      required: true
+      condition: "Always requires Sales Manager sign-off before dispatching to client."
+      override_action: "Slack notification with approval buttons sent to Sales Manager."
+    fallback_rules:
+      on_api_error: "Notify Lead Coordinator, log contract state as 'Error Draft'."
+      on_agent_timeout: "Revert back to generic boilerplate draft and alert account owner."
+
+  - workflow_id: "flow-finance-invoice-audit"
+    name: "Finance Invoice Ledger Audit & Reconciliation"
+    description: "Continuous audit loop matching accounting ledgers against payment invoices and raising alerts for mismatches."
+    trigger:
+      type: "Interval"
+      schedule: "Every day at 00:00 UTC"
+      event: "Daily Audit Batch"
+    agents_involved:
+      - "agent-3" (Finance Auditor Agent)
+    steps:
+      - step_number: 1
+        name: "Fetch Invoices & Ledgers"
+        type: "parallel_fetch"
+        endpoints:
+          invoices: "/finance/invoices"
+          ledgers: "/finance/ledgers"
+      - step_number: 2
+        name: "Run Discrepancy Scans"
+        type: "agent_execution"
+        action: "Provide lists to agent-3. Reconcile transaction lines."
+      - step_number: 3
+        name: "Process Discrepancies"
+        type: "logical_switch"
+        condition: "If discrepancies found, trigger Alert workflow; else log completion state."
+      - step_number: 4
+        name: "Auto-adjust Ledger"
+        type: "api_call"
+        endpoint: "/finance/ledgers/adjust"
+        method: "POST"
+        payload:
+          adjustments: "{{ $json.discrepancies }}"
+    human_in_the_loop:
+      required: true
+      condition: "Ledger adjustments > ₹5,00,000 require CFO manual token signature."
+      override_action: "Hold adjustment execution. Trigger high-priority Approval workflow via /ws/alerts."
+    fallback_rules:
+      on_api_error: "Fail workflow, roll back ledger adjustments, and notify Systems Administrator."
+      on_agent_timeout: "Flag audit run as 'Failed' and alert Finance Operations."
+
+  - workflow_id: "flow-agent-coordinator"
+    name: "Multi-Agent Master Orchestrator Router"
+    description: "Parses arbitrary incoming text prompts or events, breaks down execution plans, and routes to child agents."
+    trigger:
+      type: "WebSocket"
+      channel: "/ws/copilot"
+      event: "Incoming User Message"
+    agents_involved:
+      - "agent-4" (Coordinator Agent)
+    steps:
+      - step_number: 1
+        name: "Parse Request and Intention"
+        type: "agent_execution"
+        action: "agent-4 builds dynamic execution graph (planner mode) and maps required tools."
+      - step_number: 2
+        name: "Security Inspection"
+        type: "sub_workflow"
+        target_workflow: "flow-security-scrubber"
+      - step_number: 3
+        name: "Delegate Execution"
+        type: "dynamic_routing"
+        rules:
+          - "If HR request: route to HR System Prompts & flow-hr-leave-approval."
+          - "If CRM request: route to flow-crm-lead-qualification."
+          - "If Finance request: route to flow-finance-invoice-audit."
+      - step_number: 4
+        name: "Synthesize Results"
+        type: "agent_execution"
+        action: "agent-4 bundles execution outputs into a structured user response."
+      - step_number: 5
+        name: "Push Response"
+        type: "websocket_push"
+        channel: "/ws/copilot"
+    human_in_the_loop:
+      required: false
+      condition: "If planner detects high risk actions (e.g., employee termination, finance write)."
+      override_action: "Block execution until administrator confirmation received."
+    fallback_rules:
+      on_api_error: "Notify user: 'I encountered an error executing your plan. Support has been notified.'"
+      on_agent_timeout: "Revert planner context and degrade query response mode."
+
+  - workflow_id: "flow-security-scrubber"
+    name: "PII & Secrets Scrubbing Gateway"
+    description: "Inspects incoming payloads, scrubs potential API keys, secrets, SSNs, credit cards, or excessive PII before forwarding to LLM."
+    trigger:
+      type: "Internal Event"
+      event: "Pre-Flight LLM Request"
+    agents_involved: []
+    steps:
+      - step_number: 1
+        name: "Regex Scrubbing Rules"
+        type: "script"
+        action: "Parse and mask sequences matching patterns: credit cards (LUHN), SSN, API Keys (sk_live_*), JWT tokens."
+      - step_number: 2
+        name: "Dynamic Field Hashing"
+        type: "script"
+        action: "Hash specific customer identifying identifiers where lookup is needed, otherwise replace with '[MASKED]'"
+    human_in_the_loop:
+      required: false
+      condition: "None"
+      override_action: "None"
+    fallback_rules:
+      on_api_error: "Abort downstream LLM calls immediately. Secure by default."
+      on_agent_timeout: "Block request execution."

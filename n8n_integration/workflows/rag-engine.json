@@ -1,0 +1,129 @@
+{
+  "name": "Sentinel ERP RAG Document Ingestion",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "rag/ingest-document",
+        "options": {}
+      },
+      "id": "node-webhook-trigger",
+      "name": "Webhook Ingest Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = item.json.body.document_text || '';\nconst words = text.split(/\\s+/);\nconst chunks = [];\nconst chunkSize = 200; // word representation matching 1000 characters\nconst overlap = 40; // overlap 200 characters\n\nfor (let i = 0; i < words.length; i += (chunkSize - overlap)) {\n  const chunk = words.slice(i, i + chunkSize).join(' ');\n  chunks.push({ \n    json: { \n      chunk_content: chunk, \n      doc_title: item.json.body.doc_title || 'Untitled Document',\n      tags: item.json.body.tags || {}\n    } \n  });\n  if (i + chunkSize >= words.length) break;\n}\nreturn chunks;"
+      },
+      "id": "node-text-splitter",
+      "name": "Code Splitter (1000/200 Overlap)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "models/text-embedding-004"
+            },
+            {
+              "name": "content.parts[0].text",
+              "value": "={{ $json.chunk_content }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-google-embeddings",
+      "name": "Google Gemini Embeddings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        550,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cred-gemini-header-api-key",
+          "name": "Gemini API Header Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO vector_store.embeddings (doc_title, chunk_content, embedding, tags) VALUES ('{{ $('Code Splitter (1000/200 Overlap)').item.json.doc_title }}', '{{ $('Code Splitter (1000/200 Overlap)').item.json.chunk_content }}', '{{ JSON.stringify($json.embedding.values) }}'::vector, '{{ JSON.stringify($('Code Splitter (1000/200 Overlap)').item.json.tags) }}'::jsonb) RETURNING embedding_id;"
+      },
+      "id": "node-save-vector",
+      "name": "Write SQL Embeddings",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        800,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "cred-postgres-db",
+          "name": "Sentinel ERP DB Connection"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Ingest Trigger": {
+      "main": [
+        [
+          {
+            "node": "Code Splitter (1000/200 Overlap)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code Splitter (1000/200 Overlap)": {
+      "main": [
+        [
+          {
+            "node": "Google Gemini Embeddings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Embeddings": {
+      "main": [
+        [
+          {
+            "node": "Write SQL Embeddings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "id": "flow-rag-engine",
+  "meta": {
+    "instanceId": "instance-rag-engine-812"
+  }
+}

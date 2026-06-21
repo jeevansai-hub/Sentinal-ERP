@@ -1,0 +1,282 @@
+{
+  "name": "Sentinel ERP Finance Auditor",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "finance/audit-reconcile",
+        "options": {}
+      },
+      "id": "node-finance-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.sentinel-erp.internal/v1/finance/ledgers",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "node-fetch-ledgers",
+      "name": "Fetch Ledgers",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        300,
+        200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cred-firebase-jwt",
+          "name": "Firebase Auth JWT Header"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.sentinel-erp.internal/v1/finance/invoices",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "node-fetch-invoices",
+      "name": "Fetch Invoices",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        300,
+        400
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cred-firebase-jwt",
+          "name": "Firebase Auth JWT Header"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "multiplex",
+        "options": {}
+      },
+      "id": "node-merge-records",
+      "name": "Merge Records",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [
+        550,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "custom",
+        "text": "=Audit these financial records:\n\nLedger: {{ JSON.stringify($json.input.ledgers) }}\nInvoices: {{ JSON.stringify($json.input.invoices) }}",
+        "systemMessage": "=You are the Finance Auditor Agent (agent-3). Analyze incoming records, flag duplicate balances, compile recommended ledger adjustments, and determine if CFO approval is required (for adjustments > ₹5,00,000)."
+      },
+      "id": "node-finance-agent-call",
+      "name": "Finance Auditor Agent Node",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        750,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gemini-2.5-pro",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "id": "node-gemini-pro-model",
+      "name": "Gemini Pro Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        750,
+        480
+      ],
+      "credentials": {
+        "googlePublicKey": {
+          "id": "cred-gemini-api-key",
+          "name": "Google Gemini API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.requires_cfo_signoff }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "node-check-signoff",
+      "name": "Requires CFO Approval?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        980,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": "flow-approval-engine",
+        "options": {
+          "waitForCompletion": true
+        }
+      },
+      "id": "node-trigger-approval",
+      "name": "Trigger Approval Engine",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.sentinel-erp.internal/v1/finance/ledgers/adjust",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "adjustments",
+              "value": "={{ $json.adjustments_recommended }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-apply-adjustments",
+      "name": "Apply Adjustments",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1200,
+        400
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cred-firebase-jwt",
+          "name": "Firebase Auth JWT Header"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Ledgers",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Invoices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Ledgers": {
+      "main": [
+        [
+          {
+            "node": "Merge Records",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Invoices": {
+      "main": [
+        [
+          {
+            "node": "Merge Records",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Records": {
+      "main": [
+        [
+          {
+            "node": "Finance Auditor Agent Node",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Pro Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Finance Auditor Agent Node",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finance Auditor Agent Node": {
+      "main": [
+        [
+          {
+            "node": "Requires CFO Approval?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Requires CFO Approval?": {
+      "main": [
+        [
+          {
+            "node": "Trigger Approval Engine",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Apply Adjustments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "id": "flow-finance",
+  "meta": {
+    "instanceId": "instance-finance-772"
+  }
+}

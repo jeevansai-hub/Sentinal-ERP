@@ -1,0 +1,144 @@
+{
+  "name": "Sentinel ERP Inventory Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "inventory/stock-check",
+        "options": {}
+      },
+      "id": "node-webhook-inventory",
+      "name": "Stock Alert Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "custom",
+        "text": "=Evaluate stock parameters:\nItem ID: {{ $json.body.item_id }}\nCurrent Balance: {{ $json.body.current_balance }}\nReorder Threshold: {{ $json.body.reorder_threshold }}",
+        "systemMessage": "=You are the Inventory Agent. Analyze item balance records, check if reorders are needed, and output purchase recommendation signals."
+      },
+      "id": "node-inventory-agent",
+      "name": "Inventory Agent Node",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gemini-2.5-flash",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "id": "node-gemini-inventory",
+      "name": "Gemini Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        300,
+        480
+      ],
+      "credentials": {
+        "googlePublicKey": {
+          "id": "cred-gemini-api-key",
+          "name": "Google Gemini API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.reorder_evaluation.trigger_procurement }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "node-check-trigger-proc",
+      "name": "Trigger Reorder?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        550,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": "flow-procurement",
+        "options": {
+          "waitForCompletion": false
+        }
+      },
+      "id": "node-execute-proc",
+      "name": "Trigger Procurement Loop",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        780,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "Stock Alert Webhook": {
+      "main": [
+        [
+          {
+            "node": "Inventory Agent Node",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Inventory Agent Node",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inventory Agent Node": {
+      "main": [
+        [
+          {
+            "node": "Trigger Reorder?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Reorder?": {
+      "main": [
+        [
+          {
+            "node": "Trigger Procurement Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "id": "flow-inventory",
+  "meta": {
+    "instanceId": "instance-inventory-405"
+  }
+}

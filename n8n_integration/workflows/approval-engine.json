@@ -1,0 +1,175 @@
+{
+  "name": "Sentinel ERP Approval Engine (HITL)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "node-trigger-input",
+      "name": "Sub-Workflow Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "channel": "C-SALES-APPROVALS",
+        "text": "=Approval Required:\nAction: {{ $json.action || 'Ledger adjustment' }}\nDetails: {{ $json.details || 'Reconciliation mismatch adjustment' }}\nValue: {{ $json.value || '₹0' }}\nRequested by: {{ $json.requested_by || 'Finance Auditor Agent' }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": true
+        }
+      },
+      "id": "node-send-slack",
+      "name": "Send Slack Notification",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        300,
+        300
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "cred-slack-token",
+          "name": "Slack Enterprise App Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "options": {}
+      },
+      "id": "node-wait-callback",
+      "name": "Wait for Approval (HITL)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        550,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "key": "={{ $json.body.callback_id }}",
+              "operator": "equal",
+              "value": "Approved"
+            }
+          ]
+        }
+      },
+      "id": "node-verify-decision",
+      "name": "Approved?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        780,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "Approved"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-approved-state",
+      "name": "Set Approved State",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "Rejected"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-rejected-state",
+      "name": "Set Rejected State",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "Sub-Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Send Slack Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Slack Notification": {
+      "main": [
+        [
+          {
+            "node": "Wait for Approval (HITL)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Approval (HITL)": {
+      "main": [
+        [
+          {
+            "node": "Verify Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Decision": {
+      "main": [
+        [
+          {
+            "node": "Set Approved State",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Rejected State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "id": "flow-approval-engine",
+  "meta": {
+    "instanceId": "instance-approval-engine-901"
+  }
+}

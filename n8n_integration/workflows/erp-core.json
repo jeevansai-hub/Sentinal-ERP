@@ -1,0 +1,120 @@
+{
+  "name": "Sentinel ERP Core Systems Sync",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "node-start",
+      "name": "When clicking \"Test workflow\"",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO n8n_core.runs (workflow_id, tenant_id, status, input_payload) VALUES ('flow-erp-core', 'tenant-default-01', 'In_Progress', '{\"test\": true}') RETURNING run_id;"
+      },
+      "id": "node-db-log-run",
+      "name": "Log Start Run",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        300,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "cred-postgres-db",
+          "name": "Sentinel ERP DB Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.sentinel-erp.internal/v1/workflows/definitions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "node-fetch-definitions",
+      "name": "Fetch Workflow Definitions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        500,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cred-firebase-jwt",
+          "name": "Firebase Auth JWT Header"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE n8n_core.runs SET status = 'Success', output_payload = '{{ JSON.stringify($json) }}', end_time = NOW() WHERE run_id = '{{ $('Log Start Run').item.json.run_id }}';"
+      },
+      "id": "node-db-update-success",
+      "name": "Update Run Success",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        700,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "cred-postgres-db",
+          "name": "Sentinel ERP DB Connection"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When clicking \"Test workflow\"": {
+      "main": [
+        [
+          {
+            "node": "Log Start Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Start Run": {
+      "main": [
+        [
+          {
+            "node": "Fetch Workflow Definitions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Workflow Definitions": {
+      "main": [
+        [
+          {
+            "node": "Update Run Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "id": "flow-erp-core",
+  "meta": {
+    "instanceId": "instance-erp-core-991"
+  }
+}

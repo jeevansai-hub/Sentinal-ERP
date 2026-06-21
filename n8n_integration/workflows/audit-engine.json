@@ -1,0 +1,172 @@
+{
+  "name": "Sentinel ERP Audit Compliance Engine",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "node-trigger-audit",
+      "name": "Sub-Workflow Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO n8n_core.audit_logs (user_id, action, target_table, target_id, old_value, new_value) VALUES ('{{ $json.user_id }}', '{{ $json.action }}', '{{ $json.target_table }}', '{{ $json.target_id }}', '{{ JSON.stringify($json.old_val) }}'::jsonb, '{{ JSON.stringify($json.new_val) }}'::jsonb) RETURNING audit_id;"
+      },
+      "id": "node-write-audit-log",
+      "name": "Write SQL Audit Log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        300,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "cred-postgres-db",
+          "name": "Sentinel ERP DB Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "custom",
+        "text": "=Audit these actions:\nUser ID: {{ $('Sub-Workflow Trigger').item.json.user_id }}\nAction: {{ $('Sub-Workflow Trigger').item.json.action }}\nData changed: {{ JSON.stringify($('Sub-Workflow Trigger').item.json.new_val) }}",
+        "systemMessage": "=You are the Audit compliance specialist. Audit the requested action against permissions, verify role-based compliance, and flag security warnings if access violations are present."
+      },
+      "id": "node-audit-agent-call",
+      "name": "Compliance Audit Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        550,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gemini-2.5-pro",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "id": "node-gemini-audit",
+      "name": "Gemini Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        550,
+        480
+      ],
+      "credentials": {
+        "googlePublicKey": {
+          "id": "cred-gemini-api-key",
+          "name": "Google Gemini API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.security_warnings.length > 0 }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "node-check-violations",
+      "name": "Security Violations?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        780,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": "flow-notification-engine",
+        "options": {
+          "waitForCompletion": false
+        }
+      },
+      "id": "node-alert-notification",
+      "name": "Trigger Notification Engine",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "Sub-Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Write SQL Audit Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write SQL Audit Log": {
+      "main": [
+        [
+          {
+            "node": "Compliance Audit Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Compliance Audit Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compliance Audit Agent": {
+      "main": [
+        [
+          {
+            "node": "Security Violations?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Security Violations?": {
+      "main": [
+        [
+          {
+            "node": "Trigger Notification Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "id": "flow-audit-engine",
+  "meta": {
+    "instanceId": "instance-audit-engine-604"
+  }
+}

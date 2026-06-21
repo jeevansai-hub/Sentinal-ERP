@@ -1,0 +1,214 @@
+{
+  "name": "Sentinel ERP Procurement RFQ Loop",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "node-trigger",
+      "name": "When clicking \"Test workflow\"",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.sentinel-erp.internal/v1/procurement/vendors",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "node-fetch-vendors",
+      "name": "Fetch Vendors Directory",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        300,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cred-firebase-jwt",
+          "name": "Firebase Auth JWT Header"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "custom",
+        "text": "=Draft RFQ specifications for Item: {{ $json.item_id || 'itm-802' }} quantity: 100. Matching Vendors: {{ JSON.stringify($json) }}.",
+        "systemMessage": "=You are the Procurement Operations Agent. Select appropriate vendors, format requisition parameters, draft RFQ documents, and check if purchase values require manager signature approval (over ₹1,00,000)."
+      },
+      "id": "node-proc-agent",
+      "name": "Procurement Agent Node",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        550,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "model": "google-gemini",
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "node-gemini-proc",
+      "name": "Gemini Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        550,
+        480
+      ],
+      "credentials": {
+        "googlePublicKey": {
+          "id": "cred-gemini-api-key",
+          "name": "Google Gemini API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.rfq_details.requires_manager_approval }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "node-check-approval",
+      "name": "Requires Approval?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        780,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": "flow-approval-engine",
+        "options": {
+          "waitForCompletion": true
+        }
+      },
+      "id": "node-proc-approval",
+      "name": "Trigger Approval Engine",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.sentinel-erp.internal/v1/procurement/rfqs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "rfq_payload",
+              "value": "={{ JSON.stringify($json) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-create-rfq",
+      "name": "Save RFQ Draft",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1000,
+        400
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cred-firebase-jwt",
+          "name": "Firebase Auth JWT Header"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When clicking \"Test workflow\"": {
+      "main": [
+        [
+          {
+            "node": "Fetch Vendors Directory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Vendors Directory": {
+      "main": [
+        [
+          {
+            "node": "Procurement Agent Node",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Procurement Agent Node",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procurement Agent Node": {
+      "main": [
+        [
+          {
+            "node": "Requires Approval?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Requires Approval?": {
+      "main": [
+        [
+          {
+            "node": "Trigger Approval Engine",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save RFQ Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "id": "flow-procurement",
+  "meta": {
+    "instanceId": "instance-procurement-339"
+  }
+}

@@ -1,0 +1,283 @@
+{
+  "name": "Sentinel ERP Agent Router",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "agent-router",
+        "options": {}
+      },
+      "id": "node-router-webhook",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gemini-2.5-flash",
+        "options": {
+          "temperature": 0.1,
+          "maxTokens": 1024
+        }
+      },
+      "id": "node-gemini-planner",
+      "name": "Gemini Planner Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        300,
+        450
+      ],
+      "credentials": {
+        "googlePublicKey": {
+          "id": "cred-gemini-api-key",
+          "name": "Google Gemini API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "custom",
+        "text": "={{ $json.body.query }}",
+        "systemMessage": "=Analyze the following query and return the target department module in a JSON payload. Clear parameters: 'HRMS', 'FINANCE', 'CRM', 'PROCUREMENT', 'INVENTORY', 'KNOWLEDGE'.\n\nQuery: {{ $json.body.query }}"
+      },
+      "id": "node-agent-router-llm",
+      "name": "AI Router Node",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.output }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "CRM",
+              "output": 0
+            },
+            {
+              "value2": "FINANCE",
+              "output": 1
+            },
+            {
+              "value2": "HRMS",
+              "output": 2
+            },
+            {
+              "value2": "PROCUREMENT",
+              "output": 3
+            },
+            {
+              "value2": "INVENTORY",
+              "output": 4
+            },
+            {
+              "value2": "KNOWLEDGE",
+              "output": 5
+            }
+          ]
+        },
+        "fallbackOutput": 5
+      },
+      "id": "node-department-switch",
+      "name": "Route by Department",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        550,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": "flow-crm",
+        "options": {
+          "waitForCompletion": true
+        }
+      },
+      "id": "node-exec-crm-flow",
+      "name": "Execute CRM Flow",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        800,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": "flow-finance",
+        "options": {
+          "waitForCompletion": true
+        }
+      },
+      "id": "node-exec-finance-flow",
+      "name": "Execute Finance Flow",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        800,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": "flow-hr",
+        "options": {
+          "waitForCompletion": true
+        }
+      },
+      "id": "node-exec-hr-flow",
+      "name": "Execute HR Flow",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        800,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": "flow-procurement",
+        "options": {
+          "waitForCompletion": true
+        }
+      },
+      "id": "node-exec-proc-flow",
+      "name": "Execute Procurement Flow",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        800,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": "flow-inventory",
+        "options": {
+          "waitForCompletion": true
+        }
+      },
+      "id": "node-exec-inventory-flow",
+      "name": "Execute Inventory Flow",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        800,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": "flow-knowledge",
+        "options": {
+          "waitForCompletion": true
+        }
+      },
+      "id": "node-exec-knowledge-flow",
+      "name": "Execute Knowledge Flow",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        800,
+        600
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Router Node",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Planner Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Router Node",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Router Node": {
+      "main": [
+        [
+          {
+            "node": "Route by Department",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Department": {
+      "main": [
+        [
+          {
+            "node": "Execute CRM Flow",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Execute Finance Flow",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Execute HR Flow",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Execute Procurement Flow",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Execute Inventory Flow",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Execute Knowledge Flow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "id": "flow-agent-router",
+  "meta": {
+    "instanceId": "instance-agent-router-883"
+  }
+}

@@ -1,0 +1,96 @@
+{
+  "name": "Sentinel ERP Notification Engine",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "node-trigger-notif",
+      "name": "Sub-Workflow Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "channel": "C-ALERTS",
+        "text": "=ALERT TRIGGERED:\nLevel: {{ $json.level || 'Warning' }}\nMessage: {{ $json.message || 'General System Notification' }}\nTimestamp: {{ $json.timestamp || new Date().toISOString() }}"
+      },
+      "id": "node-slack-alert",
+      "name": "Send Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        300,
+        200
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "cred-slack-token",
+          "name": "Slack Enterprise App Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.sentinel-erp.internal/v1/alerts/push",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "message",
+              "value": "={{ $json.message }}"
+            },
+            {
+              "name": "channel",
+              "value": "/ws/alerts"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-ws-push",
+      "name": "Push WebSocket Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        300,
+        400
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cred-firebase-jwt",
+          "name": "Firebase Auth JWT Header"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Sub-Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Send Slack Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Push WebSocket Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "id": "flow-notification-engine",
+  "meta": {
+    "instanceId": "instance-notification-engine-118"
+  }
+}

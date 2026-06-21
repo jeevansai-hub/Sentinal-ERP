@@ -1,0 +1,282 @@
+{
+  "name": "Sentinel ERP CRM Sales Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "crm/lead-triage",
+        "options": {}
+      },
+      "id": "node-crm-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "custom",
+        "text": "=Qualify this lead request:\nCompany: {{ $json.body.company }}\nEmail: {{ $json.body.contact_email }}\nRequest: {{ $json.body.request_message }}",
+        "systemMessage": "=You are the Lead Qualifier Agent (agent-1). Parse contact form leads, calculate quality score (0-100), assign priority (Low, Standard, High, Critical), and recommend pipeline category."
+      },
+      "id": "node-lead-qualifier",
+      "name": "Lead Qualifier Agent Node",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gemini-2.5-flash",
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "node-gemini-flash-model",
+      "name": "Gemini Flash Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        300,
+        480
+      ],
+      "credentials": {
+        "googlePublicKey": {
+          "id": "cred-gemini-api-key",
+          "name": "Google Gemini API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.sentinel-erp.internal/v1/crm/deals",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "title",
+              "value": "=Lead from {{ $('Webhook Trigger').item.json.body.company }}"
+            },
+            {
+              "name": "status",
+              "value": "={{ $json.crm_actions.suggested_stage || 'Lead' }}"
+            },
+            {
+              "name": "priority",
+              "value": "={{ $json.lead_metrics.priority || 'Standard' }}"
+            },
+            {
+              "name": "company",
+              "value": "= {{ $('Webhook Trigger').item.json.body.company }}"
+            },
+            {
+              "name": "contact_email",
+              "value": "={{ $('Webhook Trigger').item.json.body.contact_email }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-create-deal",
+      "name": "Create Deal in ERP",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        550,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cred-firebase-jwt",
+          "name": "Firebase Auth JWT Header"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $('Lead Qualifier Agent Node').item.json.contract_drafting.draft_contract }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "node-check-contract",
+      "name": "Draft Contract?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        780,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "custom",
+        "text": "=Draft contract for Deal: {{ $json.deal_id }}. Discount proposed: {{ $('Lead Qualifier Agent Node').item.json.contract_drafting.discount_applied }}.",
+        "systemMessage": "=You are the Sales Closer Agent (agent-2). Generate specific markdown contract terms and clauses based on company discount policies."
+      },
+      "id": "node-closer-agent",
+      "name": "Sales Closer Agent Node",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        1000,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gemini-2.5-pro",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "node-gemini-pro-model-closer",
+      "name": "Gemini Pro Closer",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        380
+      ],
+      "credentials": {
+        "googlePublicKey": {
+          "id": "cred-gemini-api-key",
+          "name": "Google Gemini API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.sentinel-erp.internal/v1/crm/contracts/draft",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "deal_id",
+              "value": "={{ $('Create Deal in ERP').item.json.deal_id }}"
+            },
+            {
+              "name": "clauses",
+              "value": "={{ $json.output }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-save-draft",
+      "name": "Save Contract Draft",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1250,
+        200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cred-firebase-jwt",
+          "name": "Firebase Auth JWT Header"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Lead Qualifier Agent Node",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Flash Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Lead Qualifier Agent Node",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lead Qualifier Agent Node": {
+      "main": [
+        [
+          {
+            "node": "Create Deal in ERP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Deal in ERP": {
+      "main": [
+        [
+          {
+            "node": "Check Contract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Contract": {
+      "main": [
+        [
+          {
+            "node": "Sales Closer Agent Node",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Pro Closer": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Sales Closer Agent Node",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sales Closer Agent Node": {
+      "main": [
+        [
+          {
+            "node": "Save Contract Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "id": "flow-crm",
+  "meta": {
+    "instanceId": "instance-crm-220"
+  }
+}
