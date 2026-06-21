@@ -296,3 +296,27 @@ Variables required in n8n execution space:
 - [ ] Database backup triggers active prior to workflow operations.
 - [ ] SSL certificates verified and auto-renew config complete.
 - [ ] Maximum execution limits and timeout thresholds defined (default: 300 seconds).
+
+---
+
+## 16. Consolidated Project AI Agents Summary
+
+Below is the consolidated summary of all AI Agents registered in the Sentinel ERP modules (`/agents/registry`) for direct integration into n8n nodes:
+
+1. **Lead Qualifier Agent** (`agent-1`):
+   - **Cognitive Type:** Task-Based Agent
+   - **Owner Department:** Sales
+   - **Health Status:** Nominal
+   - **Assigned Skills:** `lead-sorting`, `sentiment-analysis`
+
+2. **Sales Closer Agent** (`agent-2`):
+   - **Cognitive Type:** Reasoning-Based Agent
+   - **Owner Department:** Sales
+   - **Health Status:** Nominal
+   - **Assigned Skills:** `negotiation`, `contract-drafting`
+
+3. **Finance Auditor Agent** (`agent-3`):
+   - **Cognitive Type:** Analytical-Based Agent
+   - **Owner Department:** Finance
+   - **Health Status:** Nominal
+   - **Assigned Skills:** `ledger-matching`, `disbursement-verification`
