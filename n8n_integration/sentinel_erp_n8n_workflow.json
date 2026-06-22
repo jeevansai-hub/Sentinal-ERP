@@ -1,0 +1,570 @@
+{
+  "name": "Sentinel ERP Unified AI Automation Canvas",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "copilot/chat",
+        "options": {}
+      },
+      "id": "node-trigger-chat",
+      "name": "Chat Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "path": "crm/lead-triage",
+        "options": {}
+      },
+      "id": "node-trigger-crm",
+      "name": "CRM Lead Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "path": "finance/audit-reconcile",
+        "options": {}
+      },
+      "id": "node-trigger-finance",
+      "name": "Finance Audit Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "path": "inventory/stock-check",
+        "options": {}
+      },
+      "id": "node-trigger-inventory",
+      "name": "Inventory Stock Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "path": "rag/ingest-document",
+        "options": {}
+      },
+      "id": "node-trigger-rag",
+      "name": "RAG Ingest Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "let rawText = item.json.body.message || item.json.body.request_message || '';\nlet isViolated = false;\nlet violations = [];\n\nconst ccPattern = /\\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13})\\b/;\nconst ssnPattern = /\\b\\d{3}-\\d{2}-\\d{4}\\b/;\n\nif (ccPattern.test(rawText)) {\n  rawText = rawText.replace(ccPattern, '[MASKED_PII_CC]');\n  violations.push('Credit Card leak scrubbed');\n}\nif (ssnPattern.test(rawText)) {\n  rawText = rawText.replace(ssnPattern, '[MASKED_PII_SSN]');\n  violations.push('SSN leak scrubbed');\n}\n\nreturn {\n  action: isViolated ? 'Blocked' : 'Proceed',\n  scrubbed_payload: rawText,\n  violations_detected: violations\n};"
+      },
+      "id": "node-security-scrub",
+      "name": "Security Scrubber",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        350,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO n8n_core.runs (workflow_id, tenant_id, status, input_payload) VALUES ('flow-master-consolidated', 'tenant-default-01', 'In_Progress', '{\"test\": true}') RETURNING run_id;"
+      },
+      "id": "node-sql-log-run",
+      "name": "Log Start Run",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        550,
+        100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "cred-postgres-db",
+          "name": "Sentinel ERP DB Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "custom",
+        "text": "={{ $json.scrubbed_payload }}",
+        "systemMessage": "You are the Coordinator Agent (agent-4). Decide the target department route: CRM, FINANCE, HRMS, PROCUREMENT, INVENTORY, KNOWLEDGE."
+      },
+      "id": "node-router-agent",
+      "name": "AI Coordinator Router",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        750,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gemini-2.5-flash",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "id": "node-gemini-model-router",
+      "name": "Gemini Model Router",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        750,
+        280
+      ],
+      "credentials": {
+        "googlePublicKey": {
+          "id": "cred-gemini-api-key",
+          "name": "Google Gemini API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.output }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "CRM",
+              "output": 0
+            },
+            {
+              "value2": "FINANCE",
+              "output": 1
+            },
+            {
+              "value2": "INVENTORY",
+              "output": 2
+            },
+            {
+              "value2": "KNOWLEDGE",
+              "output": 3
+            }
+          ]
+        },
+        "fallbackOutput": 3
+      },
+      "id": "node-department-switch",
+      "name": "Route Department",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "custom",
+        "text": "=Qualify lead details: {{ $('Security Scrubber').item.json.scrubbed_payload }}",
+        "systemMessage": "You are the Lead Qualifier Agent (agent-1). Output qualification parameters and determine contract generation strategy."
+      },
+      "id": "node-crm-agent",
+      "name": "CRM Qualifier Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        1250,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "custom",
+        "text": "=Audit records balance context.",
+        "systemMessage": "You are the Finance Auditor Agent (agent-3). Audit ledgers and determine if CFO verification sign-off is needed."
+      },
+      "id": "node-finance-agent",
+      "name": "Finance Auditor Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        1250,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "custom",
+        "text": "=Check stock balance parameters.",
+        "systemMessage": "You are the Inventory Agent. Identify low stock parameters and reorder recommendations."
+      },
+      "id": "node-inventory-agent",
+      "name": "Inventory Monitoring Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        1250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gemini-2.5-pro",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "id": "node-gemini-pro-model",
+      "name": "Gemini Pro Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1400,
+        100
+      ],
+      "credentials": {
+        "googlePublicKey": {
+          "id": "cred-gemini-api-key",
+          "name": "Google Gemini API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "channel": "C-SALES-APPROVALS",
+        "text": "=Manual Action Approval Requested"
+      },
+      "id": "node-slack-approval",
+      "name": "Send Slack Approval (HITL)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        100
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "cred-slack-token",
+          "name": "Slack Enterprise App Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"Success\",\n  \"data\": {{ JSON.stringify($json) }}\n}",
+        "options": {}
+      },
+      "id": "node-respond-chat",
+      "name": "Respond Success Chat",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1850,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = item.json.body.document_text || '';\nconst words = text.split(/\\s+/);\nconst chunks = [];\nconst chunkSize = 200;\nconst overlap = 40;\nfor (let i = 0; i < words.length; i += (chunkSize - overlap)) {\n  chunks.push({ \n    json: { \n      chunk_content: words.slice(i, i + chunkSize).join(' '),\n      doc_title: item.json.body.doc_title || 'Untitled'\n    } \n  });\n  if (i + chunkSize >= words.length) break;\n}\nreturn chunks;"
+      },
+      "id": "node-rag-splitter",
+      "name": "RAG Text Splitter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        350,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "models/text-embedding-004"
+            },
+            {
+              "name": "content.parts[0].text",
+              "value": "={{ $json.chunk_content }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-rag-embeddings",
+      "name": "RAG Generate Embeddings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        550,
+        900
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cred-gemini-header-api-key",
+          "name": "Gemini API Header Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO vector_store.embeddings (doc_title, chunk_content, embedding) VALUES ('{{ $('RAG Text Splitter').item.json.doc_title }}', '{{ $('RAG Text Splitter').item.json.chunk_content }}', '{{ JSON.stringify($json.embedding.values) }}'::vector) RETURNING embedding_id;"
+      },
+      "id": "node-rag-save-db",
+      "name": "Save Embeddings SQL",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        750,
+        900
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "cred-postgres-db",
+          "name": "Sentinel ERP DB Connection"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Chat Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Security Scrubber",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CRM Lead Trigger": {
+      "main": [
+        [
+          {
+            "node": "Security Scrubber",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finance Audit Trigger": {
+      "main": [
+        [
+          {
+            "node": "Security Scrubber",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inventory Stock Trigger": {
+      "main": [
+        [
+          {
+            "node": "Security Scrubber",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Security Scrubber": {
+      "main": [
+        [
+          {
+            "node": "Log Start Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Start Run": {
+      "main": [
+        [
+          {
+            "node": "AI Coordinator Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Model Router": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Coordinator Router",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Coordinator Router": {
+      "main": [
+        [
+          {
+            "node": "Route Department",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Department": {
+      "main": [
+        [
+          {
+            "node": "CRM Qualifier Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Finance Auditor Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Inventory Monitoring Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Pro Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "CRM Qualifier Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Finance Auditor Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Inventory Monitoring Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CRM Qualifier Agent": {
+      "main": [
+        [
+          {
+            "node": "Send Slack Approval (HITL)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finance Auditor Agent": {
+      "main": [
+        [
+          {
+            "node": "Send Slack Approval (HITL)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inventory Monitoring Agent": {
+      "main": [
+        [
+          {
+            "node": "Send Slack Approval (HITL)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Slack Approval (HITL)": {
+      "main": [
+        [
+          {
+            "node": "Respond Success Chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RAG Ingest Trigger": {
+      "main": [
+        [
+          {
+            "node": "RAG Text Splitter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RAG Text Splitter": {
+      "main": [
+        [
+          {
+            "node": "RAG Generate Embeddings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RAG Generate Embeddings": {
+      "main": [
+        [
+          {
+            "node": "Save Embeddings SQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "id": "flow-unified-automation",
+  "meta": {
+    "instanceId": "instance-unified-505"
+  }
+}
